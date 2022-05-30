@@ -33,9 +33,9 @@ int** create_prior(int region) {
 	int read_len;
 	for (int i = 0; i < nr_reads[region]; i++) {
 		read_len = reads_len[region][i];
-		prior_array[i] = malloc(2 * (read_len-1) * sizeof(int));
+		prior_array[i] = malloc(2 * read_len * sizeof(int));
 		//prior_integer[i] = malloc(2 * (read_len - 1) * sizeof(uint32_t));
-		for (int j = 0; j < read_len-1; j += 1) {
+		for (int j = 0; j < read_len; j += 1) {
 			double prior = pow((double)10, -(double)qualities[region][i][j] / 10.0);
 			//float prior2 = pow((double)10, -(double)qualities[region][i][j] / 10.0);
 			//uint32_t prior3 = ((float) pow((double) 10, -(double)qualities[region][i][j] / 10.0)) << 23;
@@ -86,7 +86,24 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int region) {
 	uint32_t offset = 0;
 	uint32_t offsets[6]; //6 is the number of arrays we need to copy to the mram
 	offsets[0] = 0;
-	printf("Heare\n");
+	
+	/*printf("reads_len[%d]={", nr_reads[region]);
+	for (int k = 0; k < nr_reads[region]; k++) {
+		printf("%d,", reads_len[region][k]);
+
+	}
+	printf("};\n");
+
+	printf("haplotypes_len[%d]={", nr_haplotypes[region]);
+	for (int k = 0; k < nr_haplotypes[region]; k++) {
+		printf("%d,", haplotypes_len[region][k]);
+
+	}
+	printf("};\n");*/
+
+
+
+	
 	DPU_ASSERT(dpu_broadcast_to(set, DPU_MRAM_HEAP_POINTER_NAME, 0, reads_len[region], (nr_reads[region] + nr_reads[region] % 2) *sizeof(uint32_t), DPU_XFER_DEFAULT));
 	offset += nr_reads[region] * sizeof(uint32_t);
 	offsets[1] = offset;
@@ -96,7 +113,7 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int region) {
 	offset += nr_haplotypes[region] * sizeof(uint32_t);
 	offsets[2] = offset;
 	printf("Offset = %d\n", offset);
-
+	
 
 	int reads_arr_size = 0;
 	
@@ -108,18 +125,25 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int region) {
 	for (int i = 0; i < nr_reads[region]; i++) {
 		//
 		reads_arr_size = (reads_len[region][i] % 8 == 0) ? reads_len[region][i] : reads_len[region][i] + 8 - reads_len[region][i] % 8;
-		DPU_ASSERT(dpu_broadcast_to(set, DPU_MRAM_HEAP_POINTER_NAME, offset, reads[region], reads_arr_size * sizeof(char), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_broadcast_to(set, DPU_MRAM_HEAP_POINTER_NAME, offset, reads_array[region][i], reads_arr_size * sizeof(char), DPU_XFER_DEFAULT));
 		offset += reads_arr_size * sizeof(char);
 	}
 	offsets[3] = offset;
-	printf("Offset = %d\n", offset);
+	printf("Offset prior = %d\n", offset);
 
 	int** prior_array = create_prior(region);
 	//print(prior_array, region);
 	int prior_arr_size = 0;
+	printf("PRior of length %d\n", prior_array[4][109]);
+
 	for (int i = 0; i < nr_reads[region]; i++) {
 		//printf("Writing prior for read %d in offset %d\n", i, offset);
-		prior_arr_size = 2 * (reads_len[region][i]-1) * sizeof(int);
+		prior_arr_size = 2 * (reads_len[region][i]) * sizeof(int);
+		/*printf("Prior\n");
+		for (int k = 0; k <prior_arr_size; k++) {
+			printf("%d,", prior_array[i][k]);
+		}
+		printf("\n");*/
 		DPU_ASSERT(dpu_broadcast_to(set, DPU_MRAM_HEAP_POINTER_NAME, offset, prior_array[i], prior_arr_size, DPU_XFER_DEFAULT));
 		offset += prior_arr_size;
 	}
@@ -128,15 +152,16 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int region) {
 	printf("Offset = %d\n", offset);
 
 	int hap_arr_size = 0;
-	for (int i = 0; i < nr_haplotypes[region]; i++) {
-		printf("haple_len[%d][%d]=%d\n", region, i, haplotypes_len[region][i]);
-	}
+	
 
 	/*
 	hap_arr_size = total_hap_length[region];
 	DPU_ASSERT(dpu_broadcast_to(set, DPU_MRAM_HEAP_POINTER_NAME, offset, haplotypes[region], total_hap_length[region] * sizeof(char), DPU_XFER_DEFAULT));
 	offset += hap_arr_size * sizeof(char);
 	*/
+	for (int i = 0; i < nr_haplotypes[region]; i++) {
+		printf("Haplotypes len = %d\n", haplotypes_len[region][i]);
+	}
 
 	for (int i = 0; i < nr_haplotypes[region]; i++) {
 		hap_arr_size = (haplotypes_len[region][i] % 8 == 0) ? haplotypes_len[region][i] : haplotypes_len[region][i] + 8 - haplotypes_len[region][i] % 8;
@@ -145,6 +170,7 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int region) {
 	}
 	offsets[5] = offset;
 
+	
 	DPU_ASSERT(dpu_broadcast_to(set, DPU_MRAM_HEAP_POINTER_NAME, offset, haplotypes_val[region], (nr_haplotypes[region] + nr_haplotypes[region] % 2) * sizeof(uint32_t), DPU_XFER_DEFAULT));
 	offset += nr_haplotypes[region] * sizeof(uint32_t);
 	printf("Offset = %d, broadcast offset now\n", offset);

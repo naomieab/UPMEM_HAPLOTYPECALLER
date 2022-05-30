@@ -59,7 +59,7 @@ void add_haplotype(FILE* file, int region, int index) {
 	int hap_length = strlen(hap_str);
 	haplotypes_len[region][index] = hap_length;
 	haplotypes_val[region][index] = (int) (log(1.0 / (hap_length + 1)) * ONE);
-	total_hap_length += hap_length;
+	total_hap_length[region] += hap_length;
 	if (hap_length % 8 != 0) {
 		hap_length += 8 - hap_length % 8;
 	}
@@ -187,7 +187,7 @@ void free_mem(FILE* file) {
 	free(haplotypes_array);
 	free(haplotypes_val);
 	free(haplotypes);
-
+	
 	free(total_read_length);
 	free(total_hap_length);
 

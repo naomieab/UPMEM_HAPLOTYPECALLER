@@ -46,19 +46,8 @@ int log_sum_lut[LUT_SIZE] = { 154, 153, 153, 152, 152, 151, 151, 150, 150, 149, 
 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 
 
-/*
-* For the moment we need only to implement fixed point addition since we will use the logarithmic version of GATK
-*/
-int fixedAdd(int a, int b) {
-    a = a & BITS_MASK;
-    b = b & BITS_MASK;
-    int sum = a + b;
 
-    if (((~(a ^ b) & (a ^ sum)) & MIN_VALUE) != 0) {
-        sum = a > 0 ? INT_MAX : INT_MIN;
-    }
-    return sum | UNBITS_MASK;
-}
+
 
 
 

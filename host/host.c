@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
-
+#include <unistd.h> 
 
 #include "parser.h"
 #include "populateMRAM.h"
@@ -36,11 +36,12 @@ extern char*** haplotypes_array;
 int main() {
 	struct dpu_set_t set, dpu;
 	uint32_t nr_dpus, each_dpu;
-	int result[8];
+	int result[24];
 
 	FILE* data_file = read_data("1region2.csv");
 
 
+	sleep(30);
 
 	DPU_ASSERT(dpu_alloc(1, "backend=simulator", &set));
 	DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
@@ -51,7 +52,7 @@ int main() {
 		populate_mram(set, nr_dpus, 0);
 
 		printf("Launch DPU\n");
-		DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+		dpu_launch(set, DPU_SYNCHRONOUS);
 		printf("Finished DPU work\n");
 		DPU_FOREACH(set, dpu, each_dpu) {
 			DPU_ASSERT(dpu_copy_from(dpu, "result", 0, &result, sizeof(result)));
@@ -65,17 +66,19 @@ int main() {
 	//}
 		
 		printf("Likelihhoods\n");
-		for (int i = 0; i < 3; i++) {
-			for (int j = 0; j < 22; j++) {
+		for (int i = 0; i < 2; i++) {
+			for (int j = 0; j <8; j++) {
 				printf("%f ", (double)likelihoods[i][j] /ONE);
 			}
 			printf("\n");
 		}
-		/*
-		printf("\nREad check:\n");
-		for (int i = 0; i < 50; i++) {
-			printf("%f ", read_check[i]);
-		}*/
+		
+		printf("\nResult check:\n");
+		for (int i = 0; i < 24; i++) {
+			printf("%d ", result[i]);
+		}	
+		printf("\n");
+
 		/*
 		printf("\nREad check2:\n");
 		for (int i = 0; i < 120; i++) {
