@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h> 
+#include <pthread.h>
+#include <semaphore.h>
 
 #include "parser.h"
 #include "populateMRAM.h"
@@ -33,41 +35,65 @@ extern uint32_t*** qualities;
 extern uint32_t** haplotypes_len;
 extern char*** haplotypes_array;
 
+#define NB_RANKS_MAX 8
+
+typedef struct {
+	unsigned int nb_dpus_per_rank[NB_RANKS_MAX];
+	unsigned int rank_mram_offset[NB_RANKS_MAX];
+	unsigned int nb_dpus;
+	struct dpu_set_t all_ranks;
+	struct dpu_set_t ranks[NB_RANKS_MAX];
+	pthread_mutex_t log_mutex;
+	FILE* log_file;
+	struct triplet* dpus;
+} devices_t;
+static devices_t devices;
+
+
 int main() {
 	struct dpu_set_t set, dpu;
 	uint32_t nr_dpus, each_dpu;
 	int result[24];
+	uint32_t nb_cycles, it_counter;
+	printf("Will read the data\n");
+	FILE* data_file = read_data("1region.csv");
+		
+	struct dpu_set_t rank;
+	unsigned int each_rank;
 
-	FILE* data_file = read_data("1region2.csv");
+	DPU_ASSERT(dpu_alloc(DPU_ALLOCATE_ALL, "backend=simulator", &set));
 
+	DPU_RANK_FOREACH(set, rank, each_rank) {
+		
+		printf("Each rank:%d\n", each_rank);
+	}
+	DPU_FOREACH(set, dpu, each_dpu) {
+		printf("Each dpu=%d\n", each_dpu);
+	}
 
-	sleep(30);
-
-	DPU_ASSERT(dpu_alloc(1, "backend=simulator", &set));
 	DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 	DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
+	uint32_t a;
+	dpu_get_nr_ranks(set, &a);
+	printf("Nr_regions is:%d and nr_ranks=%d, nr_dpus=%d \n", nr_regions, a, nr_dpus);
+	for (int i = 0; i < nr_regions; i++) {
 
-	//for (int i = 0; i < nr_regions; i++) {
-
-		populate_mram(set, nr_dpus, 0);
+		populate_mram(set, nr_dpus, i);
 
 		printf("Launch DPU\n");
 		dpu_launch(set, DPU_SYNCHRONOUS);
 		printf("Finished DPU work\n");
+
 		DPU_FOREACH(set, dpu, each_dpu) {
 			DPU_ASSERT(dpu_copy_from(dpu, "result", 0, &result, sizeof(result)));
 			DPU_ASSERT(dpu_copy_from(dpu, "likelihoods", 0, &likelihoods, sizeof(likelihoods)));
-			//DPU_ASSERT(dpu_copy_from(dpu, "read_check", 0, &read_check, sizeof(read_check)));
-			//DPU_ASSERT(dpu_copy_from(dpu, "read_check2", 0, &read_check2, sizeof(read_check2)));
-			//DPU_ASSERT(dpu_copy_from(dpu, "prior_check", 0, &prior_check, sizeof(prior_check)));
-			//DPU_ASSERT(dpu_copy_from(dpu, "prior_check2", 0, &prior_check2, sizeof(prior_check2)));
-			//printf("[%u] Result at the end: %d and %d %d %d %d %d %d %d\n", each_dpu, result[0], result[1],result[2], result[3], result[4], result[5], result[6], result[7]);
+			DPU_ASSERT(dpu_copy_from(dpu, "nb_cycles", 0, &nb_cycles, sizeof(nb_cycles)));
+			DPU_ASSERT(dpu_copy_from(dpu, "it_counter", 0, &it_counter, sizeof(it_counter)));
 		}
-	//}
-		
+		printf("Number of cycles: %u for %u reads\n", nb_cycles, it_counter);
 		printf("Likelihhoods\n");
 		for (int i = 0; i < 2; i++) {
-			for (int j = 0; j <8; j++) {
+			for (int j = 0; j <18; j++) {
 				printf("%f ", (double)likelihoods[i][j] /ONE);
 			}
 			printf("\n");
@@ -78,21 +104,7 @@ int main() {
 			printf("%d ", result[i]);
 		}	
 		printf("\n");
-
-		/*
-		printf("\nREad check2:\n");
-		for (int i = 0; i < 120; i++) {
-			printf("%f ", read_check2[i]);
-		}*/ 
-		/*
-		printf("\nprior check:\n");
-		for (int i = 0; i < 238; i++) {
-			printf("%f ", prior_check[i]);
-		}
-		printf("\nprior check2:\n");
-		for (int i = 0; i < 238; i++) {
-			printf("%f ", prior_check2[i]);
-		}*/
+	}
 
 	free_mem(data_file);
 	DPU_ASSERT(dpu_free(set));

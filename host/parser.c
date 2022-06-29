@@ -117,7 +117,7 @@ void concatenate_haplotypes(int region) {
 FILE* read_data(char* filename) {
 	FILE* file = fopen(filename, "r");
 	if (!file) {
-		printf("Can't read input file");
+		printf("Oupsi! Can't read input file");
 		return NULL;
 	}
 	read_and_allocate(file);

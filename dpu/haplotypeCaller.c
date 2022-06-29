@@ -15,7 +15,8 @@ __host uint32_t nr_haplotypes = 2;
 * 5. hap_val
 */
 __host uint32_t heap_offsets[6];
-
+__host uint32_t nb_cycles;
+__host uint32_t it_counter;
 __host int result[24];
 __mram_noinit int likelihoods[MAX_HAPLOTYPES][MAX_READS];
 
@@ -123,44 +124,20 @@ void allocate_haplotypes() {
 }
 
 
-/*
-* For the moment we need only to implement fixed point addition since we will use the logarithmic version of GATK
-*/
-int fixedAdd(int a, int b) {
-	//return b+1;
 
-
-	int a1 = a;
-	a1 = a1 & BITS_MASK;
-	int b1 = b;
-	b1 = b1 & BITS_MASK;
-	int sum = a1 + b1;
-	if (counter[me()] < 17998) {
-		counter[me()]++;
-		result[me()] = a;
-		result[me() + 8] = a;
-		result[me() + 16] = sum;// sum | UNBITS_MASK;
-	}
-	if (counter[me()] >= 17997) {
-		int d = a1;
-	}
-	if (((~(a1 ^ b1) & (a1 ^ sum)) & INT_MIN) != 0) {
-		sum = (a1 > 0 ? INT_MAX : INT_MIN);
-	}
-	sum = sum | UNBITS_MASK; 
-	if (counter[me()] == 17998) {
-		result[me() + 16] = a;
-	}
-	return sum;
-}
 
 
 int main() {
 	thread_id_t tasklet_id = me();
-	uint32_t rounds = 1;//nr_reads / NR_TASKLETS + (nr_reads % NR_TASKLETS != 0);
-	
+	//rounds may be computed on host?
+	uint32_t rounds = nr_reads / NR_TASKLETS + (nr_reads % NR_TASKLETS != 0);
+	if (tasklet_id == 0) {
+		nb_cycles = 0;
+		it_counter = 0;
+		perfcounter_config(COUNT_CYCLES, true);
+
+	}
 	for (uint32_t round = 0; round < rounds; round++) {
-		barrier_wait(&my_barrier);
 		if (tasklet_id == 0) {
 			mem_reset();
 			allocate_haplotypes();
@@ -181,7 +158,7 @@ int main() {
 			for (uint32_t haplotype_idx = 0; haplotype_idx < nr_haplotypes; haplotype_idx++) {
 				initialize_matrices(tasklet_id, haplotype_idx);
 				res[tasklet_id] = 0;
-				
+			
 				for (uint32_t i = 1; i <= haplotypes_len[haplotype_idx]; i++) {
 					for (uint32_t j = 1; j <= reads_len[tasklet_id]; j++) {
 						
@@ -203,24 +180,8 @@ int main() {
 
 
 						INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], transition[matchToInsertion]), fixedAdd(INSERTION_CACHE[tasklet_id][indI][j - 1], transition[insertionToInsertion]));
-						barrier_wait(&my_barrier);
 
-						if (tasklet_id == 0) {
-
-							if (result[0] == 0) {
-								if (INSERTION_CACHE[0][indI][j] != INSERTION_CACHE[1][indI][j] || INSERTION_CACHE[0][indI][j] != INSERTION_CACHE[2][indI][j] || INSERTION_CACHE[0][indI][j] != INSERTION_CACHE[3][indI][j] || INSERTION_CACHE[0][indI][j] != INSERTION_CACHE[4][indI][j] || INSERTION_CACHE[0][indI][j] != INSERTION_CACHE[5][indI][j] || INSERTION_CACHE[0][indI][j] != INSERTION_CACHE[6][indI][j] || INSERTION_CACHE[0][indI][j] != INSERTION_CACHE[7][indI][j]) {
-									//if (i == 15 && j == 55) {
-									for (int i = 0; i < 8; i++) {
-										//result[i] = INSERTION_CACHE[i][indI][j];
-										//result[i+8] = log10SumLog10(fixedAdd(MATCH_CACHE[i][indI][j - 1], transition[matchToInsertion]), fixedAdd(INSERTION_CACHE[i][indI][j - 1], transition[insertionToInsertion]));
-									}
-									
-								}
-
-							}
-
-						}
-						barrier_wait(&my_barrier);
+						
 						
 
 
@@ -232,6 +193,7 @@ int main() {
 					res[tasklet_id] = log10SumLog10( res[tasklet_id], log10SumLog10(MATCH_CACHE[tasklet_id][i % MATRIX_LINES][reads_len[tasklet_id] - 1] , INSERTION_CACHE[tasklet_id][i % MATRIX_LINES][reads_len[tasklet_id] - 1]));
 					
 				}
+				
 				barrier_wait(&my_barrier);
 				if (tasklet_id == 0) {
 					//result[3] = res[0];
@@ -244,6 +206,13 @@ int main() {
 
 		}
 		barrier_wait(&my_barrier);
+	}
+	if (tasklet_id == 0) {
+		nb_cycles = perfcounter_get();
+		//it_counter += 1;
+	}
+	if (tasklet_id == 0) {
+		mem_reset();
 	}
 	return 1;
 }
