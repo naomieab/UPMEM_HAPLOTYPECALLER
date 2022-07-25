@@ -3,27 +3,38 @@
 
 uint32_t nr_regions; //number of regions
 
-uint32_t* nr_haplotypes; //an array keeping number of haplotypes in all regions
-uint32_t* nr_reads; //idem as haplotypes
 
+/*
 uint32_t** reads_len;
 char*** reads_array;
-char** reads;
 uint32_t*** qualities;
 uint32_t** haplotypes_len;
 uint32_t** haplotypes_val;
 char*** haplotypes_array;
+*/
+char** reads;
 char** haplotypes;
 
+uint32_t nr_haplotypes[NR_REGIONS]; //an array keeping number of haplotypes in all regions
+uint32_t nr_reads[NR_REGIONS]; //idem as haplotypes
 
-int* total_read_length;
-int* total_hap_length;
+uint32_t reads_len[NR_REGIONS][MAX_READ_NUM];
+char reads_array[NR_REGIONS][MAX_READ_NUM][MAX_READ_LENGTH];
+
+uint32_t qualities[NR_REGIONS][MAX_READ_NUM][2*MAX_READ_LENGTH];
+uint32_t haplotypes_len[NR_REGIONS][MAX_HAPLOTYPE_NUM];
+uint32_t haplotypes_val[NR_REGIONS][MAX_HAPLOTYPE_NUM];
+char haplotypes_array[NR_REGIONS][MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
+
 
 
 void read_and_allocate(FILE* file) {
 	char buffer[BUFFER_SIZE];
 	assert(fgets(buffer, BUFFER_SIZE, file) != 0);
+	
 	nr_regions = atoi(buffer);
+	//EVERYTHING IS MADE CONSTANT
+	/*
 	nr_haplotypes = malloc(nr_regions * sizeof(uint32_t));
 	nr_reads = malloc(nr_regions * sizeof(uint32_t));
 	reads_len = malloc(nr_regions * sizeof(uint32_t*));
@@ -49,6 +60,7 @@ void read_and_allocate(FILE* file) {
 	assert(haplotypes);
 	assert(total_read_length);
 	assert(total_hap_length);
+	*/
 }
 
 
@@ -59,12 +71,14 @@ void add_haplotype(FILE* file, int region, int index) {
 	int hap_length = strlen(hap_str);
 	haplotypes_len[region][index] = hap_length;
 	haplotypes_val[region][index] = (int) (log(1.0 / (hap_length + 1)) * ONE);
-	total_hap_length[region] += hap_length;
+	//could erase the following lines since we work now with constant numbers
+	/*total_hap_length[region] += hap_length;
 	if (hap_length % 8 != 0) {
 		hap_length += 8 - hap_length % 8;
 	}
-	haplotypes_array[region][index] = malloc(hap_length  * sizeof(char));
-	strncpy(haplotypes_array[region][index], hap_str, hap_length);
+	haplotypes_array[region][index] = malloc(MAX_HAPLOTYPE_LENGTH  * sizeof(char));
+	*/
+	strncpy(haplotypes_array[region][index], hap_str, MAX_HAPLOTYPE_LENGTH/*hap_length*/);
 }
 
 void add_read(FILE* file, int region, int index) {
@@ -73,20 +87,22 @@ void add_read(FILE* file, int region, int index) {
 	char* token = strtok(buffer, ",");
 	int read_length = strlen(token);
 	reads_len[region][index] = read_length;
-	int malloc_read_length = read_length;
+	//could erase the following lines since we work now with constant numbers
+	/*int malloc_read_length = read_length;
 	if (malloc_read_length % 8 != 0) {
 		malloc_read_length += 8 - malloc_read_length % 8;
 	}
-	reads_array[region][index] = malloc(malloc_read_length * sizeof(char));
-	qualities[region][index] = malloc((read_length + (read_length % 2 == 1)) * sizeof(uint32_t));
 	total_read_length[region] += read_length;
-	strncpy(reads_array[region][index], token, read_length);
+	reads_array[region][index] = malloc(MAX_READ_LENGTH * sizeof(char));
+	qualities[region][index] = malloc(MAX_READ_LENGTH * sizeof(uint32_t));*/
+	strncpy(reads_array[region][index], token, MAX_READ_LENGTH/*read_length*/);
 	int j = 0;
 	for(token=strtok(NULL,","); token != NULL && j < read_length; token = strtok(NULL, ","), j++) {
 		qualities[region][index][j] = atoi(token);
 	}	
 }
 
+/*
 void concatenate_reads(int region) {
 	if (total_read_length[region] % 8 != 0) {
 		total_read_length[region] += 8 - (total_read_length[region] % 8);
@@ -113,6 +129,7 @@ void concatenate_haplotypes(int region) {
 		tmp += haplotypes_len[region][i];
 	}
 }
+*/
 
 FILE* read_data(char* filename) {
 	FILE* file = fopen(filename, "r");
@@ -121,28 +138,32 @@ FILE* read_data(char* filename) {
 		return NULL;
 	}
 	read_and_allocate(file);
-	int current_region = 0, nr_read, nr_haps;
+	int current_region = 0;
 	char buffer[BUFFER_SIZE];
-	while (fgets(buffer, BUFFER_SIZE, file) != 0 && current_region < nr_regions) {
-		nr_haps = atoi(buffer);
-		nr_haplotypes[current_region] = nr_haps;
-		haplotypes_len[current_region] = malloc( (nr_haps + nr_haps % 2) * sizeof(uint32_t));
-		haplotypes_val[current_region] = malloc( (nr_haps + nr_haps % 2) * sizeof(uint32_t));
-		haplotypes_array[current_region] = malloc(nr_haps * sizeof(char*));
-		total_hap_length[current_region] = 0;
-		for (int i = 0; i < nr_haps; i++) {
+	while (fgets(buffer, BUFFER_SIZE, file) != 0 && current_region < NR_REGIONS) {
+		nr_haplotypes[current_region] = atoi(buffer);
+
+		//erase following line
+		//nr_haplotypes[current_region] = nr_haps;
+		//haplotypes_len[current_region] = malloc( MAX_HAPLOTYPE_NUM * sizeof(uint32_t));
+		//haplotypes_val[current_region] = malloc( MAX_HAPLOTYPE_NUM * sizeof(uint32_t));
+		//haplotypes_array[current_region] = malloc(MAX_HAPLOTYPE_NUM * sizeof(char*));
+		//total_hap_length[current_region] = 0;
+		for (int i = 0; i < nr_haplotypes[current_region]; i++) {
 			add_haplotype(file, current_region, i);
 		}
 		//printf("\n HAP LENGTH=%d\n", )
-		nr_read = atoi(fgets(buffer, BUFFER_SIZE, file));
-		nr_reads[current_region] = nr_read;
-		reads_len[current_region] = malloc( (nr_read + nr_read % 2) * sizeof(uint32_t));
-		reads_array[current_region] = malloc(nr_read * sizeof(char*));
-		qualities[current_region] = malloc(nr_read * sizeof(uint32_t*));
-		total_read_length[current_region] = 0;
-		for (int i = 0; i < nr_read; i++) {
+		nr_reads[current_region] = atoi(fgets(buffer, BUFFER_SIZE, file));
+		//erase following line
+		//nr_reads[current_region] = nr_read;
+		//reads_len[current_region] = malloc( MAX_READ_NUM * sizeof(uint32_t));
+		//reads_array[current_region] = malloc( MAX_READ_NUM * sizeof(char*));
+		//qualities[current_region] = malloc( MAX_READ_NUM * sizeof(uint32_t*));
+		//total_read_length[current_region] = 0;
+		for (int i = 0; i < nr_reads[current_region]; i++) {
 			add_read(file, current_region, i);
 		}
+
 		//TODO: change the code to create directly an array containing all the reads together
 		//Currently doing copy paste below
 		//Idem for haplotypes
@@ -152,14 +173,23 @@ FILE* read_data(char* filename) {
 
 		//nr_haplotypes[current_region] = nr_haps;
 		//nr_reads[current_region] = nr_read;
+		printf("Region %d allocated: nr_haps = %d and nr_read = %d\n", current_region, nr_haplotypes[current_region], nr_reads[current_region]);
 		current_region++;
-		printf("Region %d allocated: nr_haps = %d and nr_read = %d\n", current_region, nr_haps, nr_read);
 	}
+
+
+	/*for (int i = 0; i < NR_REGIONS; i++) {
+		for (int j = 0; j < MAX_HAPLOTYPE_NUM; j++) {
+			printf("%s\n", haplotypes_array[i][j]);
+		}
+		printf("\n\n");
+	}*/
 	return file;
 }
 
 void free_mem(FILE* file) {
 	int nr_read, nr_haps;
+	/*
 	for (int i = 0; i < nr_regions; i++) {
 		nr_read = nr_reads[i];
 		nr_haps = nr_haplotypes[i];
@@ -193,6 +223,7 @@ void free_mem(FILE* file) {
 
 	free(nr_haplotypes);
 	free(nr_reads);
-
+	*/
 	fclose(file);
+
 }

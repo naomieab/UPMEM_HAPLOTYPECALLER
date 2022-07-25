@@ -1,10 +1,13 @@
 #include "haplotypeCaller.h"
 #include "fixedComputation.h"
+#include "./../host/constants.h"
 #include <limits.h>
+
+
 BARRIER_INIT(my_barrier, NR_TASKLETS);
 
-__host uint32_t nr_reads = 32;
-__host uint32_t nr_haplotypes = 2;
+__host uint32_t nr_reads;
+__host uint32_t nr_haplotypes;
 /**
 * Order in the heap is defined as :
 * 0. reads_len,
@@ -14,17 +17,16 @@ __host uint32_t nr_haplotypes = 2;
 * 4. hap_arr
 * 5. hap_val
 */
-__host uint32_t heap_offsets[6];
 __host uint32_t nb_cycles;
-__host uint32_t it_counter;
-__host int result[24];
-__mram_noinit int likelihoods[MAX_HAPLOTYPES][MAX_READS];
+__mram_noinit int likelihoods[MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
 
+__mram_noinit uint32_t mram_reads_len[MAX_READ_NUM];
+__mram_noinit char mram_reads_array[MAX_READ_NUM][MAX_READ_LENGTH];
+__mram_noinit uint32_t mram_priors[MAX_READ_NUM][2*MAX_READ_LENGTH];
+__mram_noinit uint32_t mram_haplotypes_len[MAX_HAPLOTYPE_NUM];
+__mram_noinit uint32_t mram_haplotypes_val[MAX_HAPLOTYPE_NUM];
+__mram_noinit char mram_haplotypes_array[MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
 
-//__host double read_check[50];
-//__host double prior_check[238];
-//__host double read_check2[120];
-//__host double prior_check2[238];
 
 
 //MRAM variables
@@ -38,17 +40,17 @@ int counter[NR_TASKLETS];
 //memory in the WRAM, will be allocated with mem alloc and accessed by all threads
 //We keep in WRAM 16 reads and their qualities, and all the haplotypes
 uint32_t reads_len[NR_TASKLETS];
-char* reads_arr[NR_TASKLETS];
-int* prior_arr[NR_TASKLETS];
-uint32_t* haplotypes_len; //instead of sending haplotypes lengths now we will send the log10(1/hapLength) fixed number
-uint32_t* haplotypes_val;
-char** haplotypes_arr;
+char reads_array[NR_TASKLETS][MAX_READ_LENGTH];
+int priors[NR_TASKLETS][ 2 * MAX_READ_LENGTH];
+uint32_t haplotypes_len[MAX_HAPLOTYPE_NUM]; //instead of sending haplotypes lengths now we will send the log10(1/hapLength) fixed number
+uint32_t haplotypes_val[MAX_HAPLOTYPE_NUM];
+char haplotypes_array[MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
 
 
 
-int* MATCH_CACHE[NR_TASKLETS][MATRIX_LINES];
-int* INSERTION_CACHE[NR_TASKLETS][MATRIX_LINES];
-int* DELETION_CACHE[NR_TASKLETS][MATRIX_LINES];
+int MATCH_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH];
+int INSERTION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH];
+int DELETION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH];
 
 void initialize_matrices(uint32_t id, uint32_t haplotype_idx) {
 	for (uint32_t idx = 0; idx < reads_len[id]; idx++) {
@@ -64,16 +66,27 @@ void initialize_matrices(uint32_t id, uint32_t haplotype_idx) {
 	}
 }
 
+void allocate_reads(uint32_t round) {
+	uint32_t active_threads = NR_TASKLETS;
+
+	mram_read(&mram_reads_len[round * NR_TASKLETS], reads_len, NR_TASKLETS * sizeof(uint32_t));
+	for (int i = 0; i < active_threads; i++) {
+		int read_size = ((reads_len[i] % 8 == 0) ? reads_len[i] : reads_len[i] + 8 - reads_len[i] % 8) * sizeof(char);
+		mram_read(&mram_reads_array[round * i], reads_array[i], read_size * sizeof(char));
+		mram_read(&mram_priors[round * i], priors[i], 2 * read_size * sizeof(int));
+	}
+}
 
 /**
 * n_reads is the number of reads to allocate (NR_TASKLET in all rounds except the last one that can require less)
 */
+/*
 void allocate_reads(uint32_t round) {
 	uintptr_t heap_address = ((uintptr_t)DPU_MRAM_HEAP_POINTER);
 	uint32_t active_threads = NR_TASKLETS;//(round == nr_reads / NR_TASKLET) ? nr_reads%NR_TASKLET: NR_TASKLET;
 	uint32_t i = 0;
 
-	mram_read((__mram_ptr void*)(heap_address + heap_offsets[0]), reads_len, sizeof(reads_len));
+	mram_read(, reads_len, sizeof(reads_len));
 	heap_offsets[0] += sizeof(reads_len);
 
 	
@@ -100,7 +113,8 @@ void allocate_reads(uint32_t round) {
 	}
 	
 }
-
+*/
+/*
 void allocate_haplotypes() {
 	uintptr_t heap_address = ((uintptr_t)DPU_MRAM_HEAP_POINTER);
 	uint32_t haplotypes_len_size = (nr_haplotypes + nr_haplotypes % 2) * sizeof(uint32_t);
@@ -121,9 +135,17 @@ void allocate_haplotypes() {
 	haplotypes_val = mem_alloc(haplotypes_len_size);
 	mram_read((__mram_ptr void*)(heap_address + heap_offsets[5]), haplotypes_val, haplotypes_len_size);
 
+}*/
+
+void allocate_haplotypes() {
+	//IMPORTANT: the transfer size must be a multiple of 8, we need to make a correction in some cases
+	//We need to keep MAX_HAPLOTYPE_LENGTH multiple of 4 
+	int transfer_size = nr_haplotypes + (nr_haplotypes % 2 == 1);
+	mram_read(mram_haplotypes_len, haplotypes_len, transfer_size * sizeof(uint32_t));
+	mram_read(mram_haplotypes_val, haplotypes_val, transfer_size * sizeof(uint32_t));
+	mram_read(mram_haplotypes_array, haplotypes_array, transfer_size * MAX_HAPLOTYPE_LENGTH * sizeof(char));
+
 }
-
-
 
 
 
@@ -133,14 +155,16 @@ int main() {
 	uint32_t rounds = nr_reads / NR_TASKLETS + (nr_reads % NR_TASKLETS != 0);
 	if (tasklet_id == 0) {
 		nb_cycles = 0;
-		it_counter = 0;
 		perfcounter_config(COUNT_CYCLES, true);
 
 	}
+	if (tasklet_id == 0) {
+		allocate_haplotypes();
+	}
+	barrier_wait(&my_barrier);
 	for (uint32_t round = 0; round < rounds; round++) {
 		if (tasklet_id == 0) {
-			mem_reset();
-			allocate_haplotypes();
+			//mem_reset();
 			allocate_reads(round);
 		}
 		barrier_wait(&my_barrier);
@@ -150,11 +174,11 @@ int main() {
 		if (read_idx <= nr_reads) {
 			
 			//First allocate matrix according to current read length
-			for (uint32_t i = 0; i < MATRIX_LINES; i++) {
+			/*for (uint32_t i = 0; i < MATRIX_LINES; i++) {
 				MATCH_CACHE[tasklet_id][i] = mem_alloc((reads_len[tasklet_id] + 1) * sizeof(int));
 				INSERTION_CACHE[tasklet_id][i] = mem_alloc((reads_len[tasklet_id] + 1) * sizeof(int));
 				DELETION_CACHE[tasklet_id][i] = mem_alloc((reads_len[tasklet_id] + 1) * sizeof(int));
-			}
+			}*/
 			for (uint32_t haplotype_idx = 0; haplotype_idx < nr_haplotypes; haplotype_idx++) {
 				initialize_matrices(tasklet_id, haplotype_idx);
 				res[tasklet_id] = 0;
@@ -163,11 +187,11 @@ int main() {
 					for (uint32_t j = 1; j <= reads_len[tasklet_id]; j++) {
 						
 						int prior;
-						if (reads_arr[tasklet_id][j - 1] == haplotypes_arr[haplotype_idx][i - 1]) {
-							prior = prior_arr[tasklet_id][2 * (j - 1)];
+						if (reads_array[tasklet_id][j - 1] == haplotypes_array[haplotype_idx][i - 1]) {
+							prior = priors[tasklet_id][2 * (j - 1)];
 						}
 						else {
-							prior = prior_arr[tasklet_id][2 * (j - 1) + 1];
+							prior = priors[tasklet_id][2 * (j - 1) + 1];
 						}
 
 						uint32_t indI = i % MATRIX_LINES;
@@ -209,10 +233,9 @@ int main() {
 	}
 	if (tasklet_id == 0) {
 		nb_cycles = perfcounter_get();
-		//it_counter += 1;
 	}
 	if (tasklet_id == 0) {
-		mem_reset();
+		//mem_reset();
 	}
 	return 1;
 }

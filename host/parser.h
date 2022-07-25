@@ -3,6 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <dpu_types.h>
+#include <math.h>
 
 #define BUFFER_SIZE 4098
 
