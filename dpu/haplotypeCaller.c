@@ -83,7 +83,6 @@ void allocate_haplotypes() {
 
 int main() {
 	thread_id_t tasklet_id = me();
-	//rounds may be computed on host?
 	uint32_t rounds = nr_reads / NR_TASKLETS + (nr_reads % NR_TASKLETS != 0);
 	if (tasklet_id == 0) {
 		nb_cycles = 0;
