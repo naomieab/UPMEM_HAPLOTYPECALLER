@@ -47,44 +47,29 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 
 	struct dpu_set_t dpu;
 	uint32_t each_dpu;
-	uint32_t offset = 0;
-	uint32_t offsets[6]; //6 is the number of arrays we need to copy to the mram
-	offsets[0] = 0;
 	
-
-
+	//transfer READS_LEN to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &reads_len[each_dpu * iteration]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_len", 0, MAX_READ_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
 
-	offset += MAX_READ_NUM * sizeof(uint32_t);
-	offsets[1] = offset;
 
+	//transfer HAPLOTYPES_LEN to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_len[each_dpu * iteration]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_len", 0, MAX_HAPLOTYPE_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
 
-	offset += MAX_HAPLOTYPE_NUM * sizeof(uint32_t);
-	offsets[2] = offset;
 	
-
-	int reads_arr_size = 0;
-	
-	
-
+	//transfer READS_ARRAY to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &reads_array[each_dpu * iteration]));
 	}
 	uint32_t region_read_size = MAX_READ_NUM * MAX_READ_LENGTH * sizeof(char);
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_array", 0, region_read_size, DPU_XFER_DEFAULT));
-	offset += region_read_size;
-	offsets[3] = offset;
 
-	
+
 	
 	//create prior array to transfer
 	for (int region = 0; region < NR_REGIONS; region++) {
@@ -99,38 +84,42 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	}
 
 	//transfer prior array to each dpu
+	//transfer PRIORS to DPUs
 	uint32_t prior_read_size = 2 * MAX_READ_NUM * MAX_READ_LENGTH * sizeof(uint32_t);
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &priors[each_dpu * iteration]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_priors", 0, prior_read_size, DPU_XFER_DEFAULT));
-	offset += prior_read_size;
-	offsets[4] = offset;
 
 
-	int hap_arr_size = 0;
-
+	//transfer HAPLOTYPES_LEN to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_len[each_dpu * iteration]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_len", 0, MAX_HAPLOTYPE_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
-	offset += MAX_HAPLOTYPE_NUM * sizeof(uint32_t);
-	offsets[5] = offset;
 
+	//transfer READS_ARRAY to DPUs
+	DPU_FOREACH(set, dpu, each_dpu) {
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_array[each_dpu * iteration]));
+	}
+	uint32_t haplotypes_arr_size = MAX_HAPLOTYPE_NUM * MAX_HAPLOTYPE_LENGTH * sizeof(char);
+	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_array", 0, haplotypes_arr_size, DPU_XFER_DEFAULT));
+
+
+	//transfer HAPLOTYPES_VAL to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_val[each_dpu * iteration]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_val", 0, MAX_HAPLOTYPE_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
-	offset += MAX_HAPLOTYPE_NUM * sizeof(uint32_t);
-	offsets[5] = offset;
 	
 
-//TODO: ADD NR READS and NR HAPLOTYPES TRANSFER TO DPUS
+	//transfer NR_HAPLOTYPES to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &nr_haplotypes[each_dpu * iteration]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "nr_haplotypes", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
 	
+	//transfer NR_READS to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &nr_reads[each_dpu * iteration]));
 	}

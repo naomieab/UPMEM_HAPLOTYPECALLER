@@ -20,9 +20,9 @@
 
 #define MAX_READ_LENGTH 120
 #define MAX_READ_NUM 100
-#define MAX_HAPLOTYPE_LENGTH 80
+#define MAX_HAPLOTYPE_LENGTH 160
 #define MAX_HAPLOTYPE_NUM 16
 
-#define NR_REGIONS 64
+#define NR_REGIONS 10
 
 //void createLut(int[] lut);

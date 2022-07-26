@@ -86,4 +86,3 @@ int log10SumLog10(int a, int b) {
 //return a > b ? a + Math.log10(1 + Math.pow(10.0, b - a)) : b + Math.log10(1 + Math.pow(10.0, a - b));
     
 
-//NOTE: may add another function for logSum(a,b,c) ??
