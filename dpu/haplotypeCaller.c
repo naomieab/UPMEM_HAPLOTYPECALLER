@@ -15,7 +15,7 @@ __mram_noinit int likelihoods[MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
 __host uint32_t nr_reads;
 __host uint32_t nr_haplotypes;
 
-//Mram
+//MRAM
 __mram_noinit uint32_t mram_reads_len[MAX_READ_NUM];
 __mram_noinit char mram_reads_array[MAX_READ_NUM][MAX_READ_LENGTH];
 __mram_noinit uint32_t mram_priors[MAX_READ_NUM][2 * MAX_READ_LENGTH];
