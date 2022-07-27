@@ -7,7 +7,6 @@
 
 #define BUFFER_SIZE 4098
 
-void read_and_allocate(FILE* file);
 
 void add_haplotype(FILE* file, int region, int index);
 

@@ -18,16 +18,6 @@ char haplotypes_array[NR_REGIONS][MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
 
 
 
-void read_and_allocate(FILE* file) {
-	char buffer[BUFFER_SIZE];
-	assert(fgets(buffer, BUFFER_SIZE, file) != 0);
-	
-	nr_regions = atoi(buffer);
-}
-
-
-
-
 void add_haplotype(FILE* file, int region, int index) {
 	char buffer[BUFFER_SIZE];
 	assert(fgets(buffer, BUFFER_SIZE, file));
@@ -63,7 +53,6 @@ FILE* read_data(char* filename) {
 		printf("Oupsi! Can't read input file");
 		return NULL;
 	}
-	read_and_allocate(file);
 	int current_region = 0;
 	char buffer[BUFFER_SIZE];
 	while (fgets(buffer, BUFFER_SIZE, file) != 0 && current_region < NR_REGIONS) {

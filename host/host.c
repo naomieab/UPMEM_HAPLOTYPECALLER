@@ -26,11 +26,11 @@ extern uint32_t nr_reads[NR_REGIONS]; //idem as haplotypes
 int main() {
 	struct dpu_set_t set, dpu;
 	uint32_t nr_dpus, each_dpu;
-	FILE* data_file = read_data("ActiveRegionsDetails.csv");
+	FILE* data_file = read_data("ActiveRegionsReadsHaplotypes.csv");
 
 
 
-	DPU_ASSERT(dpu_alloc(10, "backend=simulator", &set));
+	DPU_ASSERT(dpu_alloc(16, "backend=simulator", &set));
 	DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 	DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
@@ -60,7 +60,7 @@ int main() {
 			printf("Number of reads = %d\n", nr_reads[i]);
 			for (int j = 0; j < nr_haplotypes[i]; j++) {
 				for (int k = 0; k < nr_reads[i]; k++) {
-					printf("%d | ", likelihoods[i][j][k]);
+					printf("%f | ", (double)likelihoods[i][j][k] / (double)ONE);
 				}
 				printf("\n");
 			}
