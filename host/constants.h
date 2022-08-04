@@ -1,4 +1,3 @@
-
 //#define DECIMAL_BITS 12
 //#define ONE  512
 #define BITS 12
@@ -19,13 +18,25 @@
 #define UNBITS_MASK -4096 // 0b1111 1111 1111 1111 1111 0000 0000 0000
 
 
-#define MAX_READ_LENGTH 76
-#define MAX_READ_NUM 120
-#define MAX_HAPLOTYPE_LENGTH 60
-#define MAX_HAPLOTYPE_NUM 64
+#define MAX_READ_LENGTH 80 //must be a multiple of 8 (because for the biggest read we bring READ_SIZE*sizeof(char))
+#define MAX_READ_NUM 1432
+#define MAX_HAPLOTYPE_LENGTH 200
+#define MAX_HAPLOTYPE_NUM 64//127
 
 
-#define TOTAL_REGION 10//50862//Total number of regions in the run
-#define NR_REGIONS 64//64 //Total number of dpus available (we send by chunk to dpus)
+#define TOTAL_REGION 640//Total number of regions in the run
+#define NR_REGIONS 2546 //Total number of dpus available (we send by chunk to dpus)
+
+//sum of all the reads/haplotypes in chunks of 2546 regions ( + maximum number of reads/haplotypes per region)
+#define TOTAL_READS 44853 
+#define TOTAL_HAPS 7381 
+
+//dedicated to an array containing the offsets of the data
+#define OFFSET_SIZE 5
+#define READS_LEN_ARRAY 0
+#define HAPLOTYPES_LEN_VAL_ARRAY 1
+#define READS_ARR 2
+#define HAPS_ARR 3
+#define PRIOR_ARR 4
 
 //void createLut(int[] lut);

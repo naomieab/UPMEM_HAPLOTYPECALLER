@@ -9,9 +9,9 @@
 #define BUFFER_SIZE 4098
 
 
-void add_haplotype(FILE* file, int region, int index);
+int add_haplotype(FILE* file, int hap_idx, int index);
 
-void add_read(FILE* file, int region, int index);
+void add_read(FILE* file, int read_idx, int index);
 
 FILE* read_data(char* filename);
 
