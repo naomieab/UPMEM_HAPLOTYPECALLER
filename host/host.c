@@ -15,7 +15,6 @@
 //RESULTS
 int likelihoods[NR_REGIONS][MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
 int nb_cycles[NR_REGIONS];
-int a[NR_REGIONS][11];
 
 
 //DATA to print results
@@ -23,28 +22,12 @@ extern uint32_t nr_haplotypes[NR_REGIONS]; //an array keeping number of haplotyp
 extern uint32_t nr_reads[NR_REGIONS]; //idem as haplotypes
 
 
-
-
-
-
-
-
-
-
 int main() {
 	struct dpu_set_t set, dpu;
 	uint32_t nr_dpus, each_dpu;
 	FILE* data_file = read_data("ActiveRegionsReadsHaplotypes.csv");
 
-
-
-
-	 
-
-
-
-
-	DPU_ASSERT(dpu_alloc(8, "backend=simulator", &set));
+	DPU_ASSERT(dpu_alloc(64, NULL, &set));
 	DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 	DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 
