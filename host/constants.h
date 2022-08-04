@@ -16,13 +16,16 @@
    The two masks must correspond to the bits number
 */
 #define BITS_MASK 4095 // 0b0000 0000 0000 0000 00000 1111 1111 1111
-#define UNBITS_MASK 4294963200 // 0b1111 1111 1111 1111 0000 0000 0000
+#define UNBITS_MASK -4096 // 0b1111 1111 1111 1111 1111 0000 0000 0000
 
-#define MAX_READ_LENGTH 120
-#define MAX_READ_NUM 100
-#define MAX_HAPLOTYPE_LENGTH 160
-#define MAX_HAPLOTYPE_NUM 16
 
-#define NR_REGIONS 10
+#define MAX_READ_LENGTH 76
+#define MAX_READ_NUM 120
+#define MAX_HAPLOTYPE_LENGTH 60
+#define MAX_HAPLOTYPE_NUM 64
+
+
+#define TOTAL_REGION 10//50862//Total number of regions in the run
+#define NR_REGIONS 64//64 //Total number of dpus available (we send by chunk to dpus)
 
 //void createLut(int[] lut);

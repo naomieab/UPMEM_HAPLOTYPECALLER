@@ -1,4 +1,4 @@
-#include "fixedComputation.h"
+#include "fixedComputation.h" 
 #include <limits.h>
 #include <stdint.h>
 
@@ -51,36 +51,27 @@ int log_sum_lut[LUT_SIZE] = { 154, 153, 153, 152, 152, 151, 151, 150, 150, 149, 
 * For the moment we need only to implement fixed point addition since we will use the logarithmic version of GATK
 */
 
-int fixedAdd(int a, int b) {
-	//this code has a bug to fix : it seems that mixing + and bitwise operators is not right
-	// when writing ((uint32_t)(b & BITS_MASK) | (uint32_t)(a & BITS_MASK)) we have same results for all the threads 
-	// whereas when wirting it with a + on middle we get wrong results...
-	//return  (uint32_t)(b & BITS_MASK) + (uint32_t)(a & BITS_MASK);
 
-	int a1 = a & BITS_MASK;
-	int b1 = b & BITS_MASK;
-	int sum = a1 + b1; //when we replace + by | it gives good results...
-
-
-	if (((~(a1 ^ b1) & (a1 ^ sum)) & INT_MIN) != 0) {
-		sum = (a1 > 0 ? INT_MAX : INT_MIN);
-	}
-
-
-	return sum | UNBITS_MASK;
-}
 
 
 
 int log10SumLog10(int a, int b) {
-    if (a == INT_MIN || b == INT_MIN) {
-        return 0;
+    if (a == INT_MIN && b == INT_MIN) {
+        return INT_MIN;
     }
+    //if one of the two is INT_MIN return MAX
+    if (a == INT_MIN) {
+        return b;
+    }
+    else if (b == INT_MIN) {
+        return a;
+    }
+    
     if (a > b) {
-        return (b - a) >= LUT_SIZE ? a : fixedAdd(a, log_sum_lut[a - b]);
+        return (a - b) >= LUT_SIZE ? a : fixedAdd(a, log_sum_lut[a - b]);
     }
     else {
-        return (a - b) >= LUT_SIZE ? b : fixedAdd(b, log_sum_lut[b - a]);
+        return (b - a) >= LUT_SIZE ? b : fixedAdd(b, log_sum_lut[b - a]);
     }
 }
 //return a > b ? a + Math.log10(1 + Math.pow(10.0, b - a)) : b + Math.log10(1 + Math.pow(10.0, a - b));

@@ -1,5 +1,6 @@
 #include "populateMRAM.h"
 #include "constants.h"
+#include <math.h>
 
 extern uint32_t nr_regions; //number of regions
 
@@ -19,7 +20,7 @@ extern uint32_t haplotypes_len[NR_REGIONS][MAX_HAPLOTYPE_NUM];
 extern uint32_t haplotypes_val[NR_REGIONS][MAX_HAPLOTYPE_NUM];
 extern char haplotypes_array[NR_REGIONS][MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
 
-uint32_t priors[NR_REGIONS][MAX_READ_NUM][2 * MAX_READ_LENGTH];
+extern uint32_t priors[NR_REGIONS][MAX_READ_NUM][2 * MAX_READ_LENGTH];
 
 void free_prior(int** array, int region) {
 	for (int i = 0; i < nr_reads[region]; i++) {
@@ -54,7 +55,12 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_len", 0, MAX_READ_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
 
-
+	/*for (int j = 0; j < NR_REGIONS; j++) {
+		for (int i = 0; i < MAX_HAPLOTYPE_NUM; i++) {
+			printf("%d | ", haplotypes_len[j][i]);
+		}
+		printf("\n");
+	}*/
 	//transfer HAPLOTYPES_LEN to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_len[each_dpu * iteration]));
@@ -69,19 +75,18 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	uint32_t region_read_size = MAX_READ_NUM * MAX_READ_LENGTH * sizeof(char);
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_array", 0, region_read_size, DPU_XFER_DEFAULT));
 
-
-	
-	//create prior array to transfer
+	/*
 	for (int region = 0; region < NR_REGIONS; region++) {
-		for (int i = 0; i < MAX_READ_NUM; i++) {
-			for (int j = 0; j < reads_len[region][i]; j += 1) {
-				double prior = pow((double)10, -(double)qualities[region][i][j] / 10.0);
-				priors[region][i][2 * j] = (int)((1 - prior) * ONE);
-				priors[region][i][2 * j + 1] = (int)((prior / 3) * ONE);
-
+		for (int i = 0; i < nr_reads[region]; i++) {
+			printf("Read New\n");
+			printf("%s\n", reads_array[region][i]);
+			for (int j = 0; j < reads_len[region][i]; j++) {
+				printf("%d | %d | ", priors[region][i][2 * j], priors[region][i][2 * j + 1]);
 			}
+			printf("\n");
 		}
-	}
+	}*/
+
 
 	//transfer prior array to each dpu
 	//transfer PRIORS to DPUs
