@@ -69,13 +69,6 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_priors", 0, prior_read_size, DPU_XFER_DEFAULT));
 
-/*
-	//transfer HAPLOTYPES_LEN to DPUs
-	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_len[each_dpu * iteration]));
-	}
-	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_len", 0, MAX_HAPLOTYPE_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
-*/
 	//transfer READS_ARRAY to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_array[ offset[each_dpu][HAPS_ARR] ]));
