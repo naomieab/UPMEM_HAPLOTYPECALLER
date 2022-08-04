@@ -2,7 +2,7 @@ CC=gcc
 DPU_DIR := dpu
 HOST_DIR := host
 BUILDDIR ?= build
-NR_TASKLETS ?= 8
+NR_TASKLETS ?= 12
 NR_DPUS ?= 1
 
 HOST_TARGET := ${BUILDDIR}/haplotype_host
