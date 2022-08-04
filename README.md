@@ -15,4 +15,4 @@ LUT (of moderate size) who's entry are the bits of the fixed point integer.
 
 The implementation is divided between the DPU code (under dpu) and the host code (under host)
 
-A makefile is also added
+A makefile is also added (NR_TASKLETS must be a multiple of 2)
