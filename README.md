@@ -17,11 +17,12 @@ The implementation is divided between the DPU code (under dpu) and the host code
 
 A makefile is also added (NR_TASKLETS must be a multiple of 2)
 
+## Pre processing scripts
 Two scripts are added to the repository: 
 -regionStats.c computes certain statistics on an input regions files such as the number of regions, the maximum number of reads/haplotypes, the maximum length of reads/haplotypes...
 It also print to the output file provided (csv file) for each region the computation complexity of the region, as well as the number of reads and haplotypes in the region. 
 Command line to run:
-# ./regionStats input_file.csv output_file.csv 
+./regionStats input_file.csv output_file.csv 
 The input file is a file containing the regions details (haplotype number / haplotype list / read number / read+quality list)
 Once this script is ran you must open the output file (excel) and sort according to column B (this new file will serve as data to the next script)
 
@@ -32,9 +33,9 @@ In order to run it you must first complete the sortRegions.h:
   -update the array named sorted as following: the array must contain the A column of the output file of the previous script (ie, the order of the  regions)
   (copy this column to notepad++ for example and insert a comma at each line (in notepad++ you can search $ and replace by ,)
 Command line to run:
-# ./sortRegions input_file.csv output_file.csv
+./sortRegions input_file.csv output_file.csv
 input_file is the non sorted file of regions and output_file is the sorted/split file of regions
 
-
+## Running
 Once these steps have been completed you can run the HaplotypeCaller algorithm on DPUs with the following line:
-# make test INPUT=input_file.csv OUTPUT=output_file.csv PERF=performance_file.csv
+make test INPUT=input_file.csv OUTPUT=output_file.csv PERF=performance_file.csv
