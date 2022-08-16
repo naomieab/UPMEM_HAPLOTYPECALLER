@@ -2,21 +2,25 @@
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
-
+#include <assert.h>
 
 //This file must contain the array sorted sorted[i]=index of the ith region in increasing order (in term of computation need)
 // and defines needed
 #include "sortRegions.h"
 
+#define MAX_HAP_NB 24
+#define MAX_READ_NB 55//200
 
 int lines_nb[NR_REGIONS];
 char** file[NR_REGIONS];
 char buffer[BUFFER_SIZE];
 
+int sorted[NR_REGIONS];
 
 int main(int argc, char* argv[]) {
-	if (argc != 3) {
-		printf("Wrong parameters! You must provide 1st argument file to read and 2nd argument file to write regions\n");
+	for (int i = 0; i < NR_REGIONS; i++) { sorted[i] = i; }
+	if (argc != 4) {
+		printf("Wrong parameters! You must provide 1st argument file to read and 2nd argument file to write regions and 3rd argument mode (split/sort)\n");
 		return 0;
 	}
 
@@ -33,14 +37,19 @@ int main(int argc, char* argv[]) {
 	}
 	
 	int haps, reads, lines, region = 0;
-	int i;
+	int i, len, counter=0;
+	char* str;
+	int nb_hap, k, limit;
+	int nb_read, l, read_limit;
 	while (fgets(buffer, BUFFER_SIZE, readfile) != 0) {
 		haps = atoi(buffer);
+		assert(haps > 0);
 		lines = haps + 1;
 		for (i = 0; i < haps; i++) {
 			fgets(buffer, BUFFER_SIZE, readfile);
 		}
 		reads = atoi(fgets(buffer, BUFFER_SIZE, readfile));
+		assert(reads > 0);
 		lines += (reads + 1);
 		for (i = 0; i < reads; i++) {
 			fgets(buffer, BUFFER_SIZE, readfile);
@@ -60,16 +69,14 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-
 	region = 0;
-	int len;
-	char* str;
 	while (fgets(buffer, BUFFER_SIZE, readfile) != 0 && region < NR_REGIONS) {
 		str = buffer;
 		file[region][0] = malloc((strlen(str) + 1) * sizeof(char));
 		if (!file[region][0]) { printf("ERROR!\n"); return 0; }
-
+		haps = atoi(buffer);
 		strcpy(file[region][0], str);
+		assert(atoi(buffer) > 0);
 		for (i = 1; i < haps + 1; i++) {
 			fgets(buffer, BUFFER_SIZE, readfile);
 			str = buffer;
@@ -90,7 +97,6 @@ int main(int argc, char* argv[]) {
 			str = buffer;
 			file[region][i] = malloc((strlen(str) + 1) * sizeof(char));
 			if (!file[region][i]) { printf("ERROR!\n"); return 0; }
-
 			strcpy(file[region][i], str);
 		}
 		region++;
@@ -98,77 +104,54 @@ int main(int argc, char* argv[]) {
 
 
 	FILE* newfile = fopen(argv[2], "w");
-	for (i = 0; i < NR_REGIONS - TO_SEPARATE; i++) {
-		for (int j = 0; j < lines_nb[sorted[i]]; j++) {
-			fprintf(newfile, "%s", file[sorted[i]][j]);
-		}
-	}
 
-	/*
-	//separation of regions
-	//first according to haplotypes
-	int counter = 0;
-	for (i; i < NR_REGIONS; i++) {
-		int haps = atoi(file[sorted[i]][0]);
-		for (int j = 0; j < haps; j++) {
-			fprintf(newfile, "1\n");
-			fprintf(newfile, "%s", file[sorted[i]][j + 1]);
-			//don't write first line since it is the number of haplotypes so it is 1 only and also the haplotypes lines
-			for (int k = haps + 1; k < lines_nb[sorted[i]]; k++) {
-				fprintf(newfile, "%s", file[sorted[i]][k]);
-			}
-			counter++;
-		}
-	}*/
-
-	//separation of regions
-	//first according to haplotypes 
-	//and twice according to reads
-	int counter = 0;
-	int new_regions_cnt = 0, new_regions_reads;
-	int nb_reads, offset, region_reads;
-
-	int max_reads = atoi(file[sorted[i]][haps + 1]); //number of reads in the current region
-	for (i; i < NR_REGIONS; i++) {
-		if (i % 2546 == 0) {
-			max_reads = atoi(file[sorted[i]][haps + 1]);
-		}
-		int haps = atoi(file[sorted[i]][0]);
-		region_reads = atoi(file[sorted[i]][haps + 1]);
-		for (int r = 0; r < 2; r++) {
-			for (int j = 0; j < haps; j++) {
-				if (new_regions_cnt == 0) {
-					new_regions_reads = reads;
-				}
-				//write line with "1" for number of haplotypes
-				fprintf(newfile, "1\n");
-				//write haplotype sequence 
-				fprintf(newfile, "%s", file[sorted[i]][j + 1]);
-				//nb_reads is the number of reads to write for the current region
-				//offset is the offset where to start the reads (depends on round 0 or round 1)
-				//region_reads is the number of reads in the region
-
-				if (r == 0) {
-					nb_reads = (int)ceil((double)region_reads / 2);
-					offset = 0;
-				}
-				else if (r == 1) {
-					nb_reads = (int)floor((double)region_reads / 2);
-					offset = (int)ceil((double)region_reads / 2);
-				}
-				//write number of reads
-				fprintf(newfile, "%d\n", nb_reads);
-				//don't write first line since it is the number of haplotypes so it is 1 only and also the haplotypes lines
-				for (int k = 0; k < nb_reads; k++) {
-					//for (int k = haps + 1; k < lines_nb[sorted[i]]; k++) {
-					fprintf(newfile, "%s", file[sorted[i]][k + haps + 2 + offset]);
-				}
-				counter++;
+	if (strcmp(argv[3], "sort")==0) {
+		printf("Sort mode!\n");
+		for (i = 0; i < NR_REGIONS; i++) {
+			for (int j = 0; j < lines_nb[sorted[i]]; j++) {
+				fprintf(newfile, "%s", file[sorted[i]][j]);
 			}
 		}
+		fclose(newfile);
+		return 1;
 	}
 
+
+
+	for (i = 0; i < NR_REGIONS; i++) {
+		assert(i < NR_REGIONS); 
+		assert(sorted[i] < NR_REGIONS);
+		nb_hap = atoi(file[sorted[i]][0]);
+		assert(nb_hap != 0);
+			limit = ceil((double)nb_hap / MAX_HAP_NB);
+			nb_read = atoi(file[sorted[i]][nb_hap + 1]);
+			assert(nb_read != 0);
+				read_limit = ceil((double)nb_read / MAX_READ_NB);
+			for ( k = 0; k < limit; k++) {
+				int h = (k == limit-1) ? nb_hap % MAX_HAP_NB : MAX_HAP_NB;
+				if (h == 0) { h = MAX_HAP_NB; } //case when the number of haps is a multiple of MAX_HAP_NB
+				for (l = 0; l < read_limit; l++) {
+					int r = (l == read_limit - 1) ? nb_read % MAX_READ_NB : MAX_READ_NB;
+					if (r == 0) { r = MAX_READ_NB; } //case when the number of haps is a multiple of MAX_READ_NB
+					fprintf(newfile, "%d\n", h);
+					//write haplotype sequence
+					assert(i < NR_REGIONS);
+					assert(sorted[i] < NR_REGIONS);
+
+					for (int h1 = 0; h1 < h; h1++) {
+						fprintf(newfile, "%s", file[sorted[i]][k * MAX_HAP_NB + 1 + h1]);
+					}
+					assert(i < NR_REGIONS);
+					fprintf(newfile, "%d\n", r);
+					for (int r1 = 0; r1 < r; r1++) {
+						fprintf(newfile, "%s", file[sorted[i]][nb_hap + 1 + l * MAX_READ_NB + r1]);
+					}
+				}
+			}
+			counter = counter + (limit * read_limit) - 1;
+	}
 	printf("Number of added regions:%d\n", counter);
+	return 1;
 }
 
 
