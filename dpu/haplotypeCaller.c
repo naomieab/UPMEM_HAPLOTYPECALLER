@@ -8,14 +8,15 @@ BARRIER_INIT(my_barrier, NR_TASKLETS);
 
 
 //results 
-__host uint32_t nb_cycles;  
+__host uint32_t nb_cycles; 
+__host uint32_t dpu_inactive; 
 __mram_noinit int likelihoods[MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
 
-//WRAM Data
-__host uint32_t nr_reads;
-__host uint32_t nr_haplotypes; 
-  
-//MRAM 
+//WRAM Data 
+__host uint32_t nr_reads; 
+__host uint32_t nr_haplotypes;  
+   
+//MRAM   
 __mram_noinit uint32_t mram_reads_len[MAX_READ_NUM];
 __mram_noinit char mram_reads_array[MAX_READ_NUM * MAX_READ_LENGTH];//[MAX_READ_NUM][MAX_READ_LENGTH];
 __mram_noinit uint32_t mram_priors[2 * MAX_READ_NUM * MAX_READ_LENGTH];//[MAX_READ_NUM][2 * MAX_READ_LENGTH];
@@ -48,15 +49,11 @@ int INSERTION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
 int DELETION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
 
 int fixedAdd(int a, int b) {
-	//this code has a bug to fix : it seems that mixing + and bitwise operators is not right
-	// when writing ((uint32_t)(b & BITS_MASK) | (uint32_t)(a & BITS_MASK)) we have same results for all the threads 
-	// whereas when wirting it with a + on middle we get wrong results...
-	//return  (uint32_t)(b & BITS_MASK) + (uint32_t)(a & BITS_MASK);
 	if (a == INT_MIN || b == INT_MIN) {
 		return INT_MIN;
 	}
-	int a1 = a;// &BITS_MASK;
-	int b1 = b;// &BITS_MASK;
+	int a1 = a;
+	int b1 = b;
 
 	int sum = a1 + b1;
 
@@ -65,7 +62,7 @@ int fixedAdd(int a, int b) {
 	}
 
 
-	return sum;// | UNBITS_MASK;
+	return sum;
 }
 
 void initialize_matrices(uint32_t id, uint32_t haplotype_idx) {
@@ -83,18 +80,14 @@ void initialize_matrices(uint32_t id, uint32_t haplotype_idx) {
 }
 
 void allocate_reads(uint32_t read_idx_th0, uint32_t active_threads, uint32_t round) {
-
 	mram_read(&mram_reads_len[read_idx_th0], reads_len, NR_TASKLETS * sizeof(uint32_t));
-  int read_offset = NR_TASKLETS * MAX_READ_LENGTH * round;
+	int read_offset = NR_TASKLETS * MAX_READ_LENGTH * round;
 	for (int i = 0; i < active_threads; i++) {
 		int read_size = ((reads_len[i] % 8 == 0) ? reads_len[i] : reads_len[i] + 8 - reads_len[i] % 8) * sizeof(char);
-    
 		mram_read(&mram_reads_array[read_offset], &reads_array[i][0], read_size * sizeof(char));
 		mram_read(&mram_priors[2*read_offset], &priors[i][0], 2 * read_size * sizeof(int));
 		read_offset += MAX_READ_LENGTH;
-		
-	}
-	
+	}	
 }
   
 
@@ -108,8 +101,9 @@ void allocate_haplotypes() {
 } 
 
 
-
+ 
 int main() {
+  if(dpu_inactive == 1){return 1;}
 	thread_id_t tasklet_id = me();
 	uint32_t rounds = nr_reads / NR_TASKLETS + (nr_reads % NR_TASKLETS != 0);
 	if (tasklet_id == 0) {
@@ -157,8 +151,8 @@ int main() {
 						else {
 							prior = priors[tasklet_id][2 * (j - 1) + 1];
 						}
-						
-						
+
+
 						MATCH_CACHE[tasklet_id][indI][j] = fixedAdd(prior, log10SumLog10(log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j - 1], transition[matchToMatch]),
 							fixedAdd(INSERTION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])),
 							fixedAdd(DELETION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])));
@@ -184,20 +178,14 @@ int main() {
 				}
 
 			}
-
 			barrier_wait(&my_barrier);
-
 			if (tasklet_id == 0) {
 				mram_write(&res, &likelihoods[haplotype_idx][read_idx], sizeof(res));
 			}
-
 			barrier_wait(&my_barrier);
 		}
-
-
 		barrier_wait(&my_barrier);
 	}
-
 	if (tasklet_id == 0) {
 		nb_cycles = perfcounter_get();
 	}
