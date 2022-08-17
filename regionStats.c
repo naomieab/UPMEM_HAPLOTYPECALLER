@@ -9,7 +9,7 @@
 
 #define BUFFER_SIZE 1024
 #define MAX_READ_NUMBER 20000
-#define MAX_HAPLOTYPE_NUMBER 300
+#define MAX_HAPLOTYPE_NUMBER 500
 
 int add_read(FILE* file);
 int add_haplotype(FILE* file);
@@ -50,7 +50,6 @@ int main(int argc, char* argv[]) {
 			max_hap_nb = haps;
 		}
 		nr_haplotypes += (haps + (haps % 2 == 1));
-		
 		assert(haps < MAX_HAPLOTYPE_NUMBER);
 		for (int i = 0; i < haps; i++) {
 			haplotypes_len[i] = add_haplotype(file);
@@ -75,12 +74,14 @@ int main(int argc, char* argv[]) {
 		}
 
 		complexity_stat = 0;
+		int avg_hap_len=0;
 		for (int i = 0; i < haps; i++) {
 			for (int j = 0; j < reads; j++) {
 				complexity_stat += haplotypes_len[i] * reads_len[j];
 			}
+			avg_hap_len += haplotypes_len[i];
 		}
-		fprintf(stat_file,"%d, %d, %d, %d\n", current_region, complexity_stat, haps, reads);
+		fprintf(stat_file,"%d, %d, %d, %d, %d\n", current_region, complexity_stat, haps, reads, avg_hap_len/haps);
 		current_region++;
 
 		counter++;
