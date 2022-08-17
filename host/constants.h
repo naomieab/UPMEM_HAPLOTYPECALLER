@@ -19,17 +19,17 @@
 
 
 #define MAX_READ_LENGTH 80 //must be a multiple of 8 (because for the biggest read we bring READ_SIZE*sizeof(char))
-#define MAX_READ_NUM 1432
-#define MAX_HAPLOTYPE_LENGTH 200
-#define MAX_HAPLOTYPE_NUM 64//127
+#define MAX_READ_NUM 750//1432
+#define MAX_HAPLOTYPE_LENGTH 375//200
+#define MAX_HAPLOTYPE_NUM 24//64
 
 
-#define TOTAL_REGION 640//Total number of regions in the run
+#define TOTAL_REGIONS 149929//167518//Total number of regions in the run
 #define NR_REGIONS 2546 //Total number of dpus available (we send by chunk to dpus)
 
 //sum of all the reads/haplotypes in chunks of 2546 regions ( + maximum number of reads/haplotypes per region)
-#define TOTAL_READS 44853 
-#define TOTAL_HAPS 7381 
+#define TOTAL_READS 1165000//44853 
+#define TOTAL_HAPS 62000//8000 
 
 //dedicated to an array containing the offsets of the data
 #define OFFSET_SIZE 5

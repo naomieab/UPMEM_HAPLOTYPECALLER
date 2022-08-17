@@ -6,6 +6,7 @@
 
 extern uint32_t nr_haplotypes[NR_REGIONS];
 extern uint32_t nr_reads[NR_REGIONS];
+extern uint32_t dpu_inactive[NR_REGIONS];
 
 extern uint32_t offset[NR_REGIONS][OFFSET_SIZE];
 
@@ -23,7 +24,6 @@ extern uint32_t priors[TOTAL_READS * MAX_READ_LENGTH * 2];
 * @param iteration is the  
 **/
 void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
-
 	struct dpu_set_t dpu; 
 	uint32_t each_dpu;
 	
@@ -47,18 +47,6 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	}
 	uint32_t region_read_size = MAX_READ_NUM * MAX_READ_LENGTH * sizeof(char);
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_array", 0, region_read_size, DPU_XFER_DEFAULT));
-
-	/*
-	for (int region = 0; region < NR_REGIONS; region++) {
-		for (int i = 0; i < nr_reads[region]; i++) {
-			printf("Read New\n");
-			printf("%s\n", reads_array[region][i]);
-			for (int j = 0; j < reads_len[region][i]; j++) {
-				printf("%d | %d | ", priors[region][i][2 * j], priors[region][i][2 * j + 1]);
-			}
-			printf("\n");
-		}
-	}*/
 
 
 	//transfer prior array to each dpu
@@ -92,11 +80,16 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	
 	//transfer NR_READS to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &nr_reads[each_dpu * iteration]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &nr_reads[each_dpu]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "nr_reads", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
 
 
+  //transfer dpu_inactive to DPUs
+	DPU_FOREACH(set, dpu, each_dpu) {
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &dpu_inactive[each_dpu]));
+	}
+	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "dpu_inactive", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
 
 	return;
 }
