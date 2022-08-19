@@ -96,14 +96,14 @@ int main(int argc, char* argv[]) {
 			fprintf(result_file, "Number of haplotypes = %d\n", nr_haplotypes[i]);
 			fprintf(result_file, "Number of reads = %d\n", nr_reads[i]);
 			fprintf(result_file, "First likelihood : %d, %d, %d, %d\n", likelihoods[i][0][0], likelihoods[i][0][1], likelihoods[i][1][0], likelihoods[i][1][1]);
-			/*for (int j = 0; j < nr_haplotypes[i]; j++) {
-				for (int k = 0; k < nr_reads[i]; k++) {
+			for (int k = 0; k < nr_reads[i]; k++) {
+				for (int j = 0; j < nr_haplotypes[i]; j++) {
 					//printf("%d => %f | ", likelihoods[i][j][k], (double)likelihoods[i][j][k] / (double)ONE);
-		  fprintf(result_file, "%d | ", likelihoods[i][j][k]);
+		  			fprintf(result_file, "%f | ", (double)likelihoods[i][j][k] / (double)ONE);
 				}
 				fprintf(result_file,"\n");
-			}*/
-			//fprintf(result_file, "\n\n\n");
+			}
+			fprintf(result_file, "\n\n\n");
 		}
 
 	}
