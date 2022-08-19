@@ -31,16 +31,16 @@ __mram_noinit char mram_haplotypes_array[MAX_HAPLOTYPE_NUM * MAX_HAPLOTYPE_LENGT
 //these transition values are correct for 9 decimal bits (otherwise it has to be recalculated)
 int transition[TRANS_PROB_ARRAY_LENGTH] = { 0, -23, -2048, -512, -2048, -512, -2304 };
 //fixed values corresponding to transition doubles { 0.999936759471893310546875, 0.999968377, 0.999968377, 0.9, 0.1, 0.1 };
-int res[NR_TASKLETS];
+__dma_aligned int res[NR_TASKLETS];
 
 
 
-uint32_t reads_len[NR_TASKLETS];
-char reads_array[NR_TASKLETS][MAX_READ_LENGTH];
-int priors[NR_TASKLETS][2 * MAX_READ_LENGTH];
-uint32_t haplotypes_len[MAX_HAPLOTYPE_NUM]; //instead of sending haplotypes lengths now we will send the log10(1/hapLength) fixed number
-uint32_t haplotypes_val[MAX_HAPLOTYPE_NUM];
-char haplotypes_array[MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
+__dma_aligned uint32_t reads_len[NR_TASKLETS];
+__dma_aligned char reads_array[NR_TASKLETS][MAX_READ_LENGTH];
+__dma_aligned int priors[NR_TASKLETS][2 * MAX_READ_LENGTH];
+__dma_aligned uint32_t haplotypes_len[MAX_HAPLOTYPE_NUM]; //instead of sending haplotypes lengths now we will send the log10(1/hapLength) fixed number
+__dma_aligned uint32_t haplotypes_val[MAX_HAPLOTYPE_NUM];
+__dma_aligned char haplotypes_array[MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
 
 
 //Matrix cache (WRAM)
@@ -60,8 +60,6 @@ int fixedAdd(int a, int b) {
 	if (((~(a1 ^ b1) & (a1 ^ sum)) & INT_MIN) != 0) {
 		sum = (a1 > 0 ? INT_MAX : INT_MIN);
 	}
-
-
 	return sum;
 }
 
@@ -71,7 +69,6 @@ void initialize_matrices(uint32_t id, uint32_t haplotype_idx) {
 		INSERTION_CACHE[id][0][idx] = INT_MIN;
 		DELETION_CACHE[id][0][idx] = INT_MIN;
 	}
-
 	for (uint32_t idx = 0; idx < MATRIX_LINES; idx++) {
 		MATCH_CACHE[id][idx][0] = INT_MIN;
 		INSERTION_CACHE[id][idx][0] = INT_MIN;
