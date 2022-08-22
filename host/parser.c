@@ -8,6 +8,7 @@ uint32_t offset[NR_REGIONS][OFFSET_SIZE];
 uint64_t nr_haplotypes[NR_REGIONS]; //an array keeping number of haplotypes in all regions
 uint64_t nr_reads[NR_REGIONS]; //idem as haplotypes
 
+
 //TOTAL_READS= maximum total number of reads in a chunk of NR_DPUS regions + MAX_NUMBER OF READS IN ONE REGION  
 uint32_t reads_len[TOTAL_READS];
 //TOTAL_READS_SIZE = TOTAL_READS * MAX READ LEN  
@@ -21,22 +22,23 @@ uint32_t priors[TOTAL_READS * MAX_READ_LENGTH * 2];
 
 //hap_idx is the partial sum of the all the reads in the regions before
 //hap_idx+index is the offset where to write this current haplotype
-int add_haplotype(FILE* file, int hap_idx, int index) {
+void add_haplotype(FILE* file, int hap_idx, int index) {
+	if (hap_idx + index > TOTAL_HAPS) { fprintf(stderr, "Error, number of haps %d is bigger than allocated with TOTAL_HAPS\n", hap_idx + index); }
 	char buffer[BUFFER_SIZE];
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	char* hap_str = strtok(buffer, ",");
 	int hap_length = strlen(hap_str);
-	//hap_length = (hap_length > 60) ? 60 : hap_length;
-	haplotypes_len[hap_idx + index] = hap_length;
 	haplotypes_val[hap_idx + index] = (int)(log10(1.0 / (hap_length)) * ONE);
-	strncpy(&haplotypes_array[(hap_idx + index) * MAX_HAPLOTYPE_LENGTH], hap_str, MAX_HAPLOTYPE_LENGTH/*hap_length*/);
-	return hap_length;
+	haplotypes_len[hap_idx + index] = hap_length;
+	strncpy(&haplotypes_array[(hap_idx + index) * MAX_HAPLOTYPE_LENGTH], hap_str, MAX_HAPLOTYPE_LENGTH);
+	return;
 }
 
 
 
 //read_idx is the partial sum of the all the reads in the regions before
 void add_read(FILE* file, int read_idx, int index) {
+	if (read_idx + index > TOTAL_READS) { fprintf(stderr, "Error, number of reads %d is bigger than allocated with TOTAL_READS\n", read_idx + index); }
 	char buffer[BUFFER_SIZE];
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	char* token = strtok(buffer, ",");
@@ -56,34 +58,27 @@ void add_read(FILE* file, int read_idx, int index) {
 
 
 
-FILE* read_data(char* filename) {
-	FILE* file = fopen(filename, "r");
+FILE* read_data(FILE* file, int nr_dpus) {
+	//FILE* file = fopen(filename, "r");
 	if (!file) {
-		printf("Oupsi! Can't read input file\n");
+		printf("Wrong input file\n");
 		return NULL;
 	}
-	int current_region = 0, hap_len, skip = 0;
+	int current_region = 0;
 	int hap_idx = 0, read_idx = 0;
 	char buffer[BUFFER_SIZE];
-	while (fgets(buffer, BUFFER_SIZE, file) != 0 && current_region < NR_REGIONS) {
+	while (current_region < nr_dpus && fgets(buffer, BUFFER_SIZE, file) != 0) {
 		nr_haplotypes[current_region] = atoi(buffer);
-		skip = 0;
 		for (int i = 0; i < nr_haplotypes[current_region]; i++) {
-			hap_len = add_haplotype(file, hap_idx, i);
-			if (hap_len > 200) { // TODO: replace with macro (I suppose inferred from BUFFER_SIZE)
-				skip = 1;
-			}
+			add_haplotype(file, hap_idx, i);
 		}
 		hap_idx += nr_haplotypes[current_region];
 		nr_reads[current_region] = atoi(fgets(buffer, BUFFER_SIZE, file));
 		for (int i = 0; i < nr_reads[current_region]; i++) {
 			add_read(file, read_idx, i);
-
 		}
 		read_idx += nr_reads[current_region];
-		//printf("Region %d allocated: nr_haps = %d and nr_read = %d\n", current_region, nr_haplotypes[current_region], nr_reads[current_region]);
-
-		if (skip == 0 && nr_haplotypes[current_region] < 65) { current_region++; }// TODO: Replace 65 with macro (and understand what it means)
+		current_region++;
 	}
 	// Set to 0 the sizes of all unused regions
 	while (current_region < NR_REGIONS) {

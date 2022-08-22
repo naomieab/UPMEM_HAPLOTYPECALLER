@@ -9,10 +9,10 @@
 #define BUFFER_SIZE 4098
 
 
-int add_haplotype(FILE* file, int hap_idx, int index);
+void add_haplotype(FILE* file, int hap_idx, int index);
 
 void add_read(FILE* file, int read_idx, int index);
 
-FILE* read_data(char* filename);
+FILE* read_data(FILE* file, int nr_dpus);
 
 void free_mem(FILE* file);

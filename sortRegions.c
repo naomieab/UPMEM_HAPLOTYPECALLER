@@ -9,16 +9,16 @@
 #include "sortRegions.h"
 
 #define MAX_HAP_NB 24
-#define MAX_READ_NB 55//200
+#define MAX_READ_NB 165//200
 
 int lines_nb[NR_REGIONS];
 char** file[NR_REGIONS];
 char buffer[BUFFER_SIZE];
 
-int sorted[NR_REGIONS];
+//int sorted[NR_REGIONS];
 
 int main(int argc, char* argv[]) {
-	for (int i = 0; i < NR_REGIONS; i++) { sorted[i] = i; }
+	//for (int i = 0; i < NR_REGIONS; i++) { sorted[i] = i; }
 	if (argc != 4) {
 		printf("Wrong parameters! You must provide 1st argument file to read and 2nd argument file to write regions and 3rd argument mode (split/sort)\n");
 		return 0;
@@ -144,7 +144,7 @@ int main(int argc, char* argv[]) {
 					assert(i < NR_REGIONS);
 					fprintf(newfile, "%d\n", r);
 					for (int r1 = 0; r1 < r; r1++) {
-						fprintf(newfile, "%s", file[sorted[i]][nb_hap + 1 + l * MAX_READ_NB + r1]);
+						fprintf(newfile, "%s", file[sorted[i]][nb_hap + 2 + l * MAX_READ_NB + r1]);
 					}
 				}
 			}

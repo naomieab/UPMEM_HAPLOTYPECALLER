@@ -47,12 +47,6 @@ int log_sum_lut[LUT_SIZE] = { 154, 153, 153, 152, 152, 151, 151, 150, 150, 149, 
 
 
 
-/*
-* For the moment we need only to implement fixed point addition since we will use the logarithmic version of GATK
-*/
-
-
-
 
 
 int log10SumLog10(int a, int b) {
