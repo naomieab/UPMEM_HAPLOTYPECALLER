@@ -18,7 +18,8 @@ DPUF_TARGET := ${BUILDDIR}/haplotype_dpuFixedSize
 
 
 HOST_SOURCES := $(wildcard ${HOST_DIR}/*.h ${HOST_DIR}/*.c)
-DPU_SOURCES := $(wildcard ${DPU_DIR}/*.h ${DPU_DIR}/*.c)
+DPU_SOURCES := $(wildcard ${DPU_DIR}/*.c)
+DPU_DEPENDENCIES := $(wildcard ${DPU_DIR}/*.h ${DPU_DIR}/*.c)
 
 .PHONY: all clean test_c
 
@@ -44,7 +45,7 @@ ${DPUF_TARGET}: ${DPUF_SOURCES}
 ${HOST_TARGET}: ${HOST_SOURCES} 
 	$(CC) -o $@ ${HOST_SOURCES} ${HOST_FLAGS}
 
-${DPU_TARGET}: ${DPU_SOURCES} 
+${DPU_TARGET}: ${DPU_DEPENDENCIES} 
 	dpu-upmem-dpurte-clang ${DPU_FLAGS} -o $@ ${DPU_SOURCES}
 
 clean:
