@@ -17,8 +17,8 @@ HOSTF_TARGET := ${BUILDDIR}/haplotype_hostFixedSize
 DPUF_TARGET := ${BUILDDIR}/haplotype_dpuFixedSize
 
 
-HOST_SOURCES := $(wildcard ${HOST_DIR}/*.c)
-DPU_SOURCES := $(wildcard ${DPU_DIR}/*.c)
+HOST_SOURCES := $(wildcard ${HOST_DIR}/*.h ${HOST_DIR}/*.c)
+DPU_SOURCES := $(wildcard ${DPU_DIR}/*.h ${DPU_DIR}/*.c)
 
 .PHONY: all clean test_c
 
