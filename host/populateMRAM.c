@@ -4,8 +4,8 @@
 
 
 
-extern uint32_t nr_haplotypes[NR_REGIONS];
-extern uint32_t nr_reads[NR_REGIONS];
+extern uint64_t nr_haplotypes[NR_REGIONS];
+extern uint64_t nr_reads[NR_REGIONS];
 
 extern uint32_t offset[NR_REGIONS][OFFSET_SIZE];
 
@@ -26,24 +26,25 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 
 	struct dpu_set_t dpu; 
 	uint32_t each_dpu;
+	uint32_t iter_offset = nr_dpus*iteration;
 	
 	//transfer READS_LEN to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &reads_len[ offset[each_dpu][READS_LEN_ARRAY] ]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &reads_len[ offset[each_dpu + iter_offset][READS_LEN_ARRAY] ]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_len", 0, MAX_READ_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
 
 
 	//transfer HAPLOTYPES_LEN to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_len[ offset[each_dpu][HAPLOTYPES_LEN_VAL_ARRAY] ]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_len[ offset[each_dpu + iter_offset][HAPLOTYPES_LEN_VAL_ARRAY] ]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_len", 0, MAX_HAPLOTYPE_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
 
 	
 	//transfer READS_ARRAY to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &reads_array[ offset[each_dpu][READS_ARR] ]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &reads_array[ offset[each_dpu + iter_offset][READS_ARR] ]));
 	}
 	uint32_t region_read_size = MAX_READ_NUM * MAX_READ_LENGTH * sizeof(char);
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_array", 0, region_read_size, DPU_XFER_DEFAULT));
@@ -65,13 +66,13 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	//transfer PRIORS to DPUs
 	uint32_t prior_read_size = 2 * MAX_READ_NUM * MAX_READ_LENGTH * sizeof(uint32_t);
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &priors[ offset[each_dpu][PRIOR_ARR] ]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &priors[ offset[each_dpu + iter_offset][PRIOR_ARR] ]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_priors", 0, prior_read_size, DPU_XFER_DEFAULT));
 
-	//transfer READS_ARRAY to DPUs
+	//transfer HAPLOTYPES_ARRAY to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_array[ offset[each_dpu][HAPS_ARR] ]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_array[ offset[each_dpu + iter_offset][HAPS_ARR] ]));
 	}
 	uint32_t haplotypes_arr_size = MAX_HAPLOTYPE_NUM * MAX_HAPLOTYPE_LENGTH * sizeof(char);
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_array",  0, haplotypes_arr_size, DPU_XFER_DEFAULT));
@@ -79,22 +80,22 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 
 	//transfer HAPLOTYPES_VAL to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_val[ offset[each_dpu][HAPLOTYPES_LEN_VAL_ARRAY] ]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_val[ offset[each_dpu + iter_offset][HAPLOTYPES_LEN_VAL_ARRAY] ]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_val", 0, MAX_HAPLOTYPE_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
 	
 
 	//transfer NR_HAPLOTYPES to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &nr_haplotypes[each_dpu]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &nr_haplotypes[each_dpu + iter_offset]));
 	}
-	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "nr_haplotypes", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
+	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "nr_haplotypes", 0, sizeof(uint64_t), DPU_XFER_DEFAULT));
 	
 	//transfer NR_READS to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &nr_reads[each_dpu * iteration]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &nr_reads[each_dpu  + iter_offset]));
 	}
-	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "nr_reads", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
+	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "nr_reads", 0, sizeof(uint64_t), DPU_XFER_DEFAULT));
 
 
 

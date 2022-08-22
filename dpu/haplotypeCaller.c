@@ -2,18 +2,19 @@
 #include "fixedComputation.h"
 #include "./../host/constants.h"
 #include <limits.h>
+#include <stdio.h>
 
  
 BARRIER_INIT(my_barrier, NR_TASKLETS);
 
 
 //results 
-__host uint32_t nb_cycles;  
-__mram_noinit int likelihoods[MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
+__host uint64_t nb_cycles;
+__mram_noinit int64_t likelihoods[MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
 
 //WRAM Data
-__host uint32_t nr_reads;
-__host uint32_t nr_haplotypes; 
+__host uint64_t nr_reads;
+__host uint64_t nr_haplotypes;
   
 //MRAM 
 __mram_noinit uint32_t mram_reads_len[MAX_READ_NUM];
@@ -30,22 +31,22 @@ __mram_noinit char mram_haplotypes_array[MAX_HAPLOTYPE_NUM * MAX_HAPLOTYPE_LENGT
 //these transition values are correct for 9 decimal bits (otherwise it has to be recalculated)
 int transition[TRANS_PROB_ARRAY_LENGTH] = { 0, -23, -2048, -512, -2048, -512, -2304 }; 
 //fixed values corresponding to transition doubles { 0.999936759471893310546875, 0.999968377, 0.999968377, 0.9, 0.1, 0.1 };
-int res[NR_TASKLETS];
+__dma_aligned int64_t res[NR_TASKLETS];
 
 
 
-uint32_t reads_len[NR_TASKLETS]; 
-char reads_array[NR_TASKLETS][MAX_READ_LENGTH];
-int priors[NR_TASKLETS][2 * MAX_READ_LENGTH];
-uint32_t haplotypes_len[MAX_HAPLOTYPE_NUM]; //instead of sending haplotypes lengths now we will send the log10(1/hapLength) fixed number
-uint32_t haplotypes_val[MAX_HAPLOTYPE_NUM];
-char haplotypes_array[MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
+__dma_aligned uint32_t reads_len[NR_TASKLETS]; 
+__dma_aligned char reads_array[NR_TASKLETS][MAX_READ_LENGTH];
+__dma_aligned uint32_t priors[NR_TASKLETS][2 * MAX_READ_LENGTH];
+__dma_aligned uint32_t haplotypes_len[MAX_HAPLOTYPE_NUM]; //instead of sending haplotypes lengths now we will send the log10(1/hapLength) fixed number
+__dma_aligned uint32_t haplotypes_val[MAX_HAPLOTYPE_NUM];
+__dma_aligned char haplotypes_array[MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
  
 
 //Matrix cache (WRAM)
-int MATCH_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
-int INSERTION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
-int DELETION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
+__dma_aligned int MATCH_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
+__dma_aligned int INSERTION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
+__dma_aligned int DELETION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
 
 int fixedAdd(int a, int b) {
 	//this code has a bug to fix : it seems that mixing + and bitwise operators is not right
@@ -82,19 +83,14 @@ void initialize_matrices(uint32_t id, uint32_t haplotype_idx) {
 	} 
 }
 
-void allocate_reads(uint32_t read_idx_th0, uint32_t active_threads, uint32_t round) {
-
-	mram_read(&mram_reads_len[read_idx_th0], reads_len, NR_TASKLETS * sizeof(uint32_t));
-  int read_offset = NR_TASKLETS * MAX_READ_LENGTH * round;
-	for (int i = 0; i < active_threads; i++) {
-		int read_size = ((reads_len[i] % 8 == 0) ? reads_len[i] : reads_len[i] + 8 - reads_len[i] % 8) * sizeof(char);
-    
-		mram_read(&mram_reads_array[read_offset], &reads_array[i][0], read_size * sizeof(char));
-		mram_read(&mram_priors[2*read_offset], &priors[i][0], 2 * read_size * sizeof(int));
-		read_offset += MAX_READ_LENGTH;
-		
-	}
-	
+void allocate_read_for_tasklet(uint32_t read_idx_th0, uint32_t tasklet_id, uint32_t round) {
+	mram_read(&mram_reads_len[read_idx_th0], &reads_len[tasklet_id], sizeof(uint32_t));
+	int read_offset = (NR_TASKLETS * round + tasklet_id) * MAX_READ_LENGTH;
+	int read_size = ((reads_len[tasklet_id] % 8 == 0) ? reads_len[tasklet_id] : reads_len[tasklet_id] + 8 - reads_len[tasklet_id] % 8) * sizeof(char);
+	assert(read_size <= MAX_READ_LENGTH);
+	mram_read(&mram_reads_array[read_offset], &reads_array[tasklet_id][0], read_size * sizeof(char));
+	assert(2*read_size*sizeof(int) <= 2*MAX_READ_LENGTH*sizeof(uint32_t));
+	mram_read(&mram_priors[2*read_offset], &priors[tasklet_id][0], 2 * read_size * sizeof(int));
 }
   
 
@@ -102,6 +98,7 @@ void allocate_haplotypes() {
 	//IMPORTANT: the transfer size must be a multiple of 8, we need to make a correction in some cases
 	//We need to keep MAX_HAPLOTYPE_LENGTH multiple of 4 
 	int transfer_size = nr_haplotypes + (nr_haplotypes % 2 == 1);
+	assert(transfer_size <= MAX_HAPLOTYPE_NUM);
 	mram_read(mram_haplotypes_len, haplotypes_len, transfer_size * sizeof(uint32_t));
 	mram_read(mram_haplotypes_val, haplotypes_val, transfer_size * sizeof(uint32_t));
 	mram_read(mram_haplotypes_array, haplotypes_array, transfer_size * MAX_HAPLOTYPE_LENGTH * sizeof(char));
@@ -119,27 +116,15 @@ int main() {
 	if (tasklet_id == 0) {
 		allocate_haplotypes();
 	} 
-	barrier_wait(&my_barrier);
 	
 	for (uint32_t round = 0; round < rounds; round++) {
 		uint32_t	read_idx = tasklet_id + NR_TASKLETS * round;
 		
-		if (tasklet_id == 0) {
-			
-			if (round == rounds - 1) {
-				allocate_reads(read_idx, nr_reads - read_idx, round);
-			}
-			else {
-				allocate_reads(read_idx, NR_TASKLETS, round);
-			}
-		}
-
-		barrier_wait(&my_barrier);
-		uint32_t j;
-		//From here each tasklet is on charge of reads tasklet_id, tasklet_id + NR_TASKLET, tasklet_id + 2*NR_TASKLET ...
-		for (uint32_t haplotype_idx = 0; haplotype_idx < nr_haplotypes; haplotype_idx++) {
-
-			if (read_idx < nr_reads) {
+		if (read_idx < nr_reads) {
+			allocate_read_for_tasklet(read_idx, tasklet_id, round);
+	        uint32_t j;
+	        //From here each tasklet is in charge of reads tasklet_id, tasklet_id + NR_TASKLETS, tasklet_id + 2*NR_TASKLETS ...
+	        for (uint32_t haplotype_idx = 0; haplotype_idx < nr_haplotypes; haplotype_idx++) {
 
 				initialize_matrices(tasklet_id, haplotype_idx);
 				res[tasklet_id] = INT_MIN;
@@ -183,21 +168,14 @@ int main() {
 
 				}
 
+				mram_write(&res[tasklet_id], &likelihoods[haplotype_idx][read_idx], sizeof(res[0]));
 			}
-
-			barrier_wait(&my_barrier);
-
-			if (tasklet_id == 0) {
-				mram_write(&res, &likelihoods[haplotype_idx][read_idx], sizeof(res));
-			}
-
-			barrier_wait(&my_barrier);
 		}
 
 
-		barrier_wait(&my_barrier);
 	}
 
+	barrier_wait(&my_barrier);
 	if (tasklet_id == 0) {
 		nb_cycles = perfcounter_get();
 	}

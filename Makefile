@@ -24,7 +24,7 @@ DPU_SOURCES := $(wildcard ${DPU_DIR}/*.c)
 
 
 HOST_FLAGS := -std=c11 -O3 -lm `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS}
-DPU_FLAGS := -pg -DNR_TASKLETS=${NR_TASKLETS}
+DPU_FLAGS := -DNR_TASKLETS=${NR_TASKLETS}
 
 all: ${HOST_TARGET} ${DPU_TARGET}
 
