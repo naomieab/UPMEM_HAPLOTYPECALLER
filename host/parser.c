@@ -10,7 +10,7 @@ uint64_t nr_reads[NR_REGIONS]; //idem as haplotypes
 
 
 //TOTAL_READS= maximum total number of reads in a chunk of NR_DPUS regions + MAX_NUMBER OF READS IN ONE REGION  
-uint32_t reads_len[TOTAL_READS];
+uint64_t reads_len[TOTAL_READS];
 //TOTAL_READS_SIZE = TOTAL_READS * MAX READ LEN  
 char reads_array[TOTAL_READS * MAX_READ_LENGTH];
 uint32_t haplotypes_len[TOTAL_HAPS];

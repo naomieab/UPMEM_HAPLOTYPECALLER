@@ -10,7 +10,7 @@ extern uint64_t dpu_inactive[NR_REGIONS];
 
 extern uint32_t offset[NR_REGIONS][OFFSET_SIZE];
 
-extern uint32_t reads_len[TOTAL_READS]; 
+extern uint64_t reads_len[TOTAL_READS]; 
 extern char reads_array[TOTAL_READS * MAX_READ_LENGTH]; 
 extern uint32_t haplotypes_len[TOTAL_HAPS];
 extern uint32_t haplotypes_val[TOTAL_HAPS];

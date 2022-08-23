@@ -1,6 +1,7 @@
 #include "haplotypeCaller.h"
 #include "fixedComputation.h"
 #include "./../host/constants.h"
+#include "mutex.h"
 #include <limits.h>
 #include <stdio.h>
 
@@ -18,7 +19,7 @@ __host uint64_t nr_haplotypes;
 __host uint64_t dpu_inactive;
   
 //MRAM 
-__mram_noinit uint32_t mram_reads_len[MAX_READ_NUM];
+__mram_noinit uint64_t mram_reads_len[MAX_READ_NUM];
 __mram_noinit char mram_reads_array[MAX_READ_NUM * MAX_READ_LENGTH];//[MAX_READ_NUM][MAX_READ_LENGTH];
 __mram_noinit uint32_t mram_priors[2 * MAX_READ_NUM * MAX_READ_LENGTH];//[MAX_READ_NUM][2 * MAX_READ_LENGTH];
 __mram_noinit uint32_t mram_haplotypes_len[MAX_HAPLOTYPE_NUM];
@@ -35,7 +36,7 @@ int transition[TRANS_PROB_ARRAY_LENGTH] = { 0, -23, -2048, -512, -2048, -512, -2
 __dma_aligned int64_t res[NR_TASKLETS];
 
 
-__dma_aligned uint32_t reads_len[NR_TASKLETS];
+__dma_aligned uint64_t reads_len[NR_TASKLETS];
 __dma_aligned char reads_array[NR_TASKLETS][MAX_READ_LENGTH];
 __dma_aligned int priors[NR_TASKLETS][2 * MAX_READ_LENGTH];
 __dma_aligned uint32_t haplotypes_len[MAX_HAPLOTYPE_NUM]; //instead of sending haplotypes lengths now we will send the log10(1/hapLength) fixed number
@@ -76,9 +77,9 @@ void initialize_matrices(uint32_t id, uint32_t haplotype_idx) {
 	}
 }
 
-void allocate_read_for_tasklet(uint32_t read_idx_th0, uint32_t tasklet_id, uint32_t round) {
-	mram_read(&mram_reads_len[read_idx_th0], &reads_len[tasklet_id], sizeof(uint32_t));
-	int read_offset = (NR_TASKLETS * round + tasklet_id) * MAX_READ_LENGTH;
+void allocate_read_for_tasklet(uint32_t read_idx_th0, uint32_t tasklet_id) {
+	mram_read(&mram_reads_len[read_idx_th0], &reads_len[tasklet_id], sizeof(uint64_t));
+	int read_offset = read_idx_th0 * MAX_READ_LENGTH;
 	int read_size = ((reads_len[tasklet_id] % 8 == 0) ? reads_len[tasklet_id] : reads_len[tasklet_id] + 8 - reads_len[tasklet_id] % 8) * sizeof(char);
 	assert(read_size <= MAX_READ_LENGTH);
 	mram_read(&mram_reads_array[read_offset], &reads_array[tasklet_id][0], read_size * sizeof(char));
@@ -98,24 +99,39 @@ void allocate_haplotypes() {
 }
 
 
+uint32_t free_read_idx;
+MUTEX_INIT(task_reservation_mutex);
+uint32_t reserve_read(int tasklet_id) {
+	mutex_lock(task_reservation_mutex);
+	uint32_t result = free_read_idx++;
+	mutex_unlock(task_reservation_mutex);
+	return result;
+}
+
+
 
 int main() {
 	if (dpu_inactive == 1) { return 1; }
 	thread_id_t tasklet_id = me();
 	uint32_t rounds = nr_reads / NR_TASKLETS + (nr_reads % NR_TASKLETS != 0);
 	if (tasklet_id == 0) {
+		free_read_idx = 0;
 		nb_cycles = 0;
 		perfcounter_config(COUNT_CYCLES, true);
 	}
 	if (tasklet_id == 0) {
 		allocate_haplotypes();
 	} 
+	barrier_wait(&my_barrier);
 	
-	for (uint32_t round = 0; round < rounds; round++) {
-		uint32_t	read_idx = tasklet_id + NR_TASKLETS * round;
+	//for (uint32_t round = 0; round < rounds; round++) {
+		//uint32_t	read_idx = tasklet_id + NR_TASKLETS * round;
+
+	uint32_t read_idx;
+	while ((read_idx = reserve_read(tasklet_id)) < nr_reads) {
 		
 		if (read_idx < nr_reads) {
-			allocate_read_for_tasklet(read_idx, tasklet_id, round);
+			allocate_read_for_tasklet(read_idx, tasklet_id);
 			uint32_t j;
 			//From here each tasklet is in charge of reads tasklet_id, tasklet_id + NR_TASKLETS, tasklet_id + 2*NR_TASKLETS ...
 			for (uint32_t haplotype_idx = 0; haplotype_idx < nr_haplotypes; haplotype_idx++) {

@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
 			nr_dpus = TOTAL_REGIONS % NR_REGIONS;
 			for (int i = nr_dpus; i < NR_REGIONS; i++) { dpu_inactive[i] = 1; }
 		}
-        data_file = read_data(data_file, nr_dpus);
+		data_file = read_data(data_file, nr_dpus);
 
 		populate_mram(set, nr_dpus, iteration);
 
