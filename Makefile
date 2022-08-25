@@ -52,7 +52,7 @@ clean:
 	$(RM) -r $(BUILDDIR)
 
 test_valgrind: ${HOST_TARGET} ${DPU_TARGET}
-	valgrind -s --leak-check=full ./${HOST_TARGET}
+	valgrind -s --leak-check=full ./${HOST_TARGET} ${INPUT} ${OUTPUT} ${PERF}
 
 test: ${HOST_TARGET} ${DPU_TARGET}
-	./${HOST_TARGET}
+	./${HOST_TARGET} ${INPUT} ${OUTPUT} ${PERF}
