@@ -2,6 +2,7 @@
 
 import sys
 import os
+from math import sqrt
 
 def values(file_name):
     with open(file_name, "r") as f:
@@ -26,9 +27,11 @@ def main():
         total += diff
         total_sq += diff*diff
         n += 1
+    variance = total_sq/n - total*total/n/n
     print("total=", total)
     print("avg=", total/n)
-    print("variance=", n*total_sq/total/total)
+    print("variance=", variance)
+    print("std-dev=", sqrt(variance))
 
 
 if __name__ == "__main__":
