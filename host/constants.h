@@ -16,11 +16,12 @@
 */
 #define BITS_MASK 4095 // 0b0000 0000 0000 0000 00000 1111 1111 1111
 #define UNBITS_MASK -4096 // 0b1111 1111 1111 1111 1111 0000 0000 0000
+#define LIMIT 2048 //tranfer size limit for MRAM_READ
 
 
 #define MAX_READ_LENGTH 80 //must be a multiple of 8 (because for the biggest read we bring READ_SIZE*sizeof(char))
 #define MAX_READ_NUM 750//1432
-#define MAX_HAPLOTYPE_LENGTH 375//200
+#define MAX_HAPLOTYPE_LENGTH 384//200 //MUST BE MULTIPLE OF 4
 #define MAX_HAPLOTYPE_NUM 24//64
 
 
