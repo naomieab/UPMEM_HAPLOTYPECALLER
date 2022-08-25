@@ -7,7 +7,7 @@
 #include <time.h>
 
 #include "parser.h"
-#include "populateMRAM.h"   
+#include "populateMRAM.h"    
 #include "constants.h"
 
 #ifndef DPU_BINARY

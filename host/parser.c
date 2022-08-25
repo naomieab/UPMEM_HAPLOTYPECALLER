@@ -14,7 +14,7 @@ uint64_t reads_len[TOTAL_READS];
 //TOTAL_READS_SIZE = TOTAL_READS * MAX READ LEN  
 char reads_array[TOTAL_READS * MAX_READ_LENGTH];
 uint32_t haplotypes_len[TOTAL_HAPS];
-uint32_t haplotypes_val[TOTAL_HAPS];
+int32_t haplotypes_val[TOTAL_HAPS];
 char haplotypes_array[TOTAL_HAPS * MAX_HAPLOTYPE_LENGTH];
 uint32_t priors[TOTAL_READS * MAX_READ_LENGTH * 2];
 
