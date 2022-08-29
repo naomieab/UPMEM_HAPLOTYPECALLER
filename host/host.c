@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
 	//i is the iteration: if we have several rounds to process on a set of dpus, each iteration process a single round
 	for (int iteration = 0; iteration < dpu_iterations; iteration++) {
 		printf("Starting iteration: %d\n", iteration);
-		if (iteration == dpu_iterations-1)) {
+		if (iteration == dpu_iterations-1) {
 			nr_dpus = TOTAL_REGIONS % NR_REGIONS;
 			for (int i = nr_dpus; i < NR_REGIONS; i++) { dpu_inactive[i] = 1; }
 		}
