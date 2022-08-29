@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
 	//i is the iteration: if we have several rounds to process on a set of dpus, each iteration process a single round
 	for (int iteration = 0; iteration < dpu_iterations; iteration++) {
 		printf("Starting iteration: %d\n", iteration);
-		if (iteration == (int)floor((double)TOTAL_REGIONS / nr_dpus)) {
+		if (iteration == dpu_iterations-1)) {
 			nr_dpus = TOTAL_REGIONS % NR_REGIONS;
 			for (int i = nr_dpus; i < NR_REGIONS; i++) { dpu_inactive[i] = 1; }
 		}
@@ -94,15 +94,15 @@ int main(int argc, char* argv[]) {
 
 		for (int i = 0; i < nr_dpus; i++) {
 			int region_index = iteration*nr_dpus+i;
-			fprintf(result_file, "\nREGION %d\n", region_index);
-			fprintf(csv_result, "%d\n", nb_cycles[i]);
-			fprintf(result_file, "Number of haplotypes = %d\n", nr_haplotypes[i]);
-			fprintf(result_file, "Number of reads = %d\n", nr_reads[i]);
-			fprintf(result_file, "First likelihood : %d, %d, %d, %d\n", likelihoods[i][0][0], likelihoods[i][0][1], likelihoods[i][1][0], likelihoods[i][1][1]);
+			//fprintf(result_file, "\nREGION %d\n", region_index);
+			//fprintf(csv_result, "%d\n", nb_cycles[i]);
+			//fprintf(result_file, "Number of haplotypes = %d\n", nr_haplotypes[i]);
+			//fprintf(result_file, "Number of reads = %d\n", nr_reads[i]);
+			//fprintf(result_file, "First likelihood : %d, %d, %d, %d\n", likelihoods[i][0][0], likelihoods[i][0][1], likelihoods[i][1][0], likelihoods[i][1][1]);
 			for (int k = 0; k < nr_reads[i]; k++) {
 				for (int j = 0; j < nr_haplotypes[i]; j++) {
 					//printf("%d => %f | ", likelihoods[i][j][k], (double)likelihoods[i][j][k] / (double)ONE);
-		  			fprintf(result_file, "%f | ", (double)likelihoods[i][j][k] / (double)ONE);
+		  			fprintf(result_file, "%f, ", (double)likelihoods[i][j][k] / (double)ONE);
 				}
 				fprintf(result_file,"\n");
 			}
