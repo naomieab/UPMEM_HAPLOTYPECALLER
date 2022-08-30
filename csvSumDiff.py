@@ -7,11 +7,11 @@ from math import sqrt
 def values(file_name):
     with open(file_name, "r") as f:
         for l in f.readlines():
-            for v in l.split(","):
+            for v in (s for s in l.split(",") if s.strip()!=""):
                 try:
                     yield float(v)
-                except:
-                    pass
+                except ValueError:
+                    print("could not convert '"+str(v)+"' to float")
 
 def main():
     file1 = sys.argv[1]
