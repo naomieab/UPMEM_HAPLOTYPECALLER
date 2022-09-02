@@ -175,7 +175,7 @@ uint32_t reserve_read(int tasklet_id) {
             if ((haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length)%BUFFER_SIZE < haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length) {
                 write_length = BUFFER_SIZE - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
             }
-            mram_read((__mram_ptr void*)&mram_haplotypes_array[haplotype_copy_start_index] + written,
+            mram_read((__mram_ptr void*)&mram_haplotypes_array[haplotype_copy_start_index*MAX_HAPLOTYPE_LENGTH*sizeof(char)] + written,
                       (void*)haplotypes_buffer + (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written)%BUFFER_SIZE,
                       write_length);
             written += write_length;
@@ -198,7 +198,7 @@ int main() {
 	// if (dpu_inactive != 1) { return 0; }// FIXME : remove that line
 	thread_id_t tasklet_id = me();
 	current_region[tasklet_id] = 0;
-	uint32_t rounds = nr_reads / NR_TASKLETS + (nr_reads % NR_TASKLETS != 0);
+	// uint32_t rounds = nr_reads / NR_TASKLETS + (nr_reads % NR_TASKLETS != 0);
 	if (tasklet_id == 0) {
 		free_read_idx = 0;
 		nb_cycles = 0;
