@@ -108,7 +108,7 @@ void allocate_haplotypes() {
 
 
 uint32_t free_read_idx;
-uint32_t last_region_allocated;
+int32_t last_region_allocated;
 uint32_t current_region[NR_TASKLETS];
 MUTEX_INIT(task_reservation_mutex);
 
@@ -165,14 +165,15 @@ uint32_t reserve_read(int tasklet_id) {
         // Now copy the haplotypes while making sure no transfer is bigger than LIMIT
         #define BUFFER_SIZE (MAX_HAPLOTYPE_LENGTH*NR_WRAM_HAPLOTYPES*sizeof(char))
         int transfer_end = (haplotypes_buffer_end+transfer_size)*MAX_HAPLOTYPE_LENGTH;
-        for (int written = 0; haplotypes_buffer_end+written < transfer_end; ) {
+        for (int written = 0; haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written < transfer_end; ) {
             int write_length;
-            if ((written+LIMIT)%BUFFER_SIZE < written) {
-                int write_length = BUFFER_SIZE - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
-            } else if (written+LIMIT >= transfer_end) {
-                int write_length = transfer_end - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
+            if (written+LIMIT+haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH >= transfer_end) {
+                write_length = transfer_end - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
             } else {
-                int write_length = LIMIT;
+                write_length = LIMIT;
+            }
+            if ((haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length)%BUFFER_SIZE < haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length) {
+                write_length = BUFFER_SIZE - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
             }
             mram_read((__mram_ptr void*)&mram_haplotypes_array[haplotype_copy_start_index] + written,
                       (void*)haplotypes_buffer + (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written)%BUFFER_SIZE,
