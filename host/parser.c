@@ -114,6 +114,7 @@ FILE* read_data(FILE* file, int nr_dpus) {
             read_region_starts[current_dpu][current_dpu_total_regions] = nr_reads[current_dpu];
         } else {
             current_dpu++;
+            dpu_region_start_index[current_dpu] = dpu_region_start_index[current_dpu-1] + current_dpu_total_regions;
             current_dpu_total_regions = 1;
             //current_dpu_total_reads = nr_reads_current_region;
             current_dpu_total_complexity = region_complexity;

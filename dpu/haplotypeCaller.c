@@ -3,7 +3,6 @@
 #include "./../host/constants.h"
 #include "mutex.h"
 #include <limits.h>
-#include <stdio.h>
 
 
 BARRIER_INIT(my_barrier, NR_TASKLETS);
@@ -118,11 +117,9 @@ uint32_t reserve_read(int tasklet_id) {
 	mutex_lock(task_reservation_mutex);
 
 	uint32_t result = free_read_idx++;
-	printf("reserving read:%u\n", result);
 	// If the new read is in a new region, allocate necessary haplotypes
 	if (result < nr_reads && result>=read_region_starts[last_region_allocated+1]) {
 		last_region_allocated++;
-		printf("allocating region:%u\n", last_region_allocated);
 		uint32_t number_of_haplotypes = haplotype_region_starts[last_region_allocated+1]-haplotype_region_starts[last_region_allocated];
 		assert(number_of_haplotypes < NR_WRAM_HAPLOTYPES);
 		// If there isn't enough room in the haplotypes buffer,
@@ -130,7 +127,6 @@ uint32_t reserve_read(int tasklet_id) {
 		// Active wait isn't optimal but hopefully it shouldn't happen too often.
 		// TODO: investigate cost of active wait.
 		while (haplotypes_buffer_start != haplotypes_buffer_end && number_of_haplotypes > (haplotypes_buffer_start-haplotypes_buffer_end)%NR_WRAM_HAPLOTYPES) {
-			// printf("waiting for buffer to be freed\n");
 			int min_region = last_region_allocated;
 			for (int id=0; id<NR_TASKLETS; id++) {
 				if (current_region[id] < min_region) {
@@ -145,7 +141,6 @@ uint32_t reserve_read(int tasklet_id) {
 		int transfer_size;
 		// Only copy as far as you can at first
 		if (number_of_haplotypes+haplotypes_buffer_start > NR_WRAM_HAPLOTYPES) {
-			printf("preparing for a split transfer\n");
 			assert(number_of_haplotypes<=NR_WRAM_HAPLOTYPES);
 			transfer_size = (NR_WRAM_HAPLOTYPES-haplotypes_buffer_start);
 		} else {
