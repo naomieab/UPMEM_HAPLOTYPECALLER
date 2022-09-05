@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
 	}
 
 
-	DPU_ASSERT(dpu_alloc(10, NULL, &set));
+	DPU_ASSERT(dpu_alloc(DPU_ALLOCATE_ALL, NULL, &set));
 	DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 	DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 	DPU_ASSERT(dpu_get_nr_ranks(set, &nr_ranks));
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < nr_dpus; i++) {
             int local_region_index = -1;
             // fprintf(result_file, "\nDPU %d\n", i);
-			// fprintf(csv_result, "%d\n", nb_cycles[i]);
+			fprintf(csv_result, "%d\n", nb_cycles[i]);
 			// fprintf(result_file, "Number of haplotypes = %d\n", nr_haplotypes[i]);
 			// fprintf(result_file, "Number of reads = %d\n", nr_reads[i]);
 			// fprintf(result_file, "First likelihood : %d, %d, %d, %d\n", likelihoods[i][0][0], likelihoods[i][0][1], likelihoods[i][1][0], likelihoods[i][1][1]);

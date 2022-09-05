@@ -13,6 +13,11 @@ def values(file_name):
                 except ValueError:
                     print("could not convert '"+str(v)+"' to float")
 
+def pad_None(iterator):
+    for v in iterator:
+        yield v
+    yield None
+
 def main():
     file1 = sys.argv[1]
     file2 = sys.argv[2]
@@ -20,7 +25,11 @@ def main():
     total = 0
     total_sq = 0
     n = 0
-    for v1, v2 in zip(values(file1), values(file2)):
+    for v1, v2 in zip(pad_None(values(file1)), pad_None(values(file2))):
+        if v1==None or v2==None:
+            if v1!=None or v2!=None:
+                print("files aren't the same length")
+            break
         diff = v2-v1
         if diff*diff > 1:
             print(v1,v2)
