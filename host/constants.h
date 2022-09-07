@@ -20,9 +20,9 @@
 
 
 #define MAX_READ_LENGTH 80 //must be a multiple of 8 (because for the biggest read we bring READ_SIZE*sizeof(char))
-#define MAX_READ_NUM 2100//1432
+#define MAX_READ_NUM 1400//1432
 #define MAX_HAPLOTYPE_LENGTH 380//200 //MUST BE MULTIPLE OF 4
-#define MAX_HAPLOTYPE_NUM 24//64
+#define MAX_HAPLOTYPE_NUM 34//64
 #define MAX_REGIONS_PER_DPU 9// Has to be an odd number
 
 #define NR_WRAM_HAPLOTYPES 32
