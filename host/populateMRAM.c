@@ -34,14 +34,14 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &reads_len[ offset[dpu_region_start_index[each_dpu]][READS_LEN_ARRAY] ]));
 	}
-	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_len", 0, MAX_READ_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
+	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_len", 0, MAX_READ_NUM * sizeof(uint64_t), DPU_XFER_DEFAULT));
 
 
 	//transfer HAPLOTYPES_LEN to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_len[ offset[dpu_region_start_index[each_dpu]][HAPLOTYPES_LEN_VAL_ARRAY] ]));
 	}
-	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_len", 0, MAX_HAPLOTYPE_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
+	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_len", 0, MAX_HAPLOTYPE_NUM * sizeof(uint64_t), DPU_XFER_DEFAULT));
 
 	
 	//transfer READS_ARRAY to DPUs
@@ -54,7 +54,7 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 
 	//transfer prior array to each dpu
 	//transfer PRIORS to DPUs
-	uint32_t prior_read_size = 2 * MAX_READ_NUM * MAX_READ_LENGTH * sizeof(uint32_t);
+	uint32_t prior_read_size = 2 * MAX_READ_NUM * MAX_READ_LENGTH * sizeof(int32_t);
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &priors[ offset[dpu_region_start_index[each_dpu]][PRIOR_ARR] ]));
 	}
@@ -72,7 +72,7 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_val[ offset[dpu_region_start_index[each_dpu]][HAPLOTYPES_LEN_VAL_ARRAY] ]));
 	}
-	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_val", 0, MAX_HAPLOTYPE_NUM * sizeof(uint32_t), DPU_XFER_DEFAULT));
+	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_val", 0, MAX_HAPLOTYPE_NUM * sizeof(uint64_t), DPU_XFER_DEFAULT));
 	
 
 	//transfer NR_HAPLOTYPES to DPUs
@@ -103,7 +103,7 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &dpu_inactive[each_dpu]));
 	}
-	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "dpu_inactive", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
+	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "dpu_inactive", 0, sizeof(uint64_t), DPU_XFER_DEFAULT));
 
 	return;
 }
