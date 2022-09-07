@@ -33,9 +33,9 @@ def main():
         diff = v2-v1
         if diff*diff > 1:
             print("\033[31m"+(str(v1)+",").ljust(8)+"\t"+str(v2)+"\033[0m")
-        elif diff*diff > 0.1:
+        elif diff*diff > 0.01:
             print("\033[33m"+(str(v1)+",").ljust(8)+"\t"+str(v2)+"\033[0m")
-        elif diff*diff > 0.001:
+        elif diff*diff > 0.0000001:
             print((str(v1)+",").ljust(8)+"\t"+str(v2))
         total += diff
         total_sq += diff*diff
