@@ -9,16 +9,16 @@
 #include "sortRegions.h"
 
 #define MAX_HAP_NB 24
-#define MAX_READ_NB 165//200
+#define MAX_READ_NB 120//200
 
 int lines_nb[NR_REGIONS];
 char** file[NR_REGIONS];
 char buffer[BUFFER_SIZE];
 
-//int sorted[NR_REGIONS];
+int sorted[NR_REGIONS];
 
 int main(int argc, char* argv[]) {
-	//for (int i = 0; i < NR_REGIONS; i++) { sorted[i] = i; }
+	for (int i = 0; i < NR_REGIONS; i++) { sorted[i] = i; }
 	if (argc != 4) {
 		printf("Wrong parameters! You must provide 1st argument file to read and 2nd argument file to write regions and 3rd argument mode (split/sort)\n");
 		return 0;
@@ -50,9 +50,10 @@ int main(int argc, char* argv[]) {
 		}
 		reads = atoi(fgets(buffer, BUFFER_SIZE, readfile));
 		assert(reads > 0);
-		lines += (reads + 1);
+		lines += (2*reads + 1);
 		for (i = 0; i < reads; i++) {
-			fgets(buffer, BUFFER_SIZE, readfile);
+			fgets(buffer, BUFFER_SIZE, readfile); //get read line
+			fgets(buffer, BUFFER_SIZE, readfile); //get transitions line
 		}
 		file[region] = malloc(lines * sizeof(char*));
 		if (!file[region]) {
@@ -62,7 +63,7 @@ int main(int argc, char* argv[]) {
 		region++;
 	}
 	fclose(readfile);
-
+	
 	readfile = fopen(argv[1], "r");
 	if (!readfile) {
 		printf("Cannot open input file");
@@ -85,14 +86,14 @@ int main(int argc, char* argv[]) {
 
 			strcpy(file[region][i], str);
 		}
-		reads = lines_nb[region] - haps - 2;
+		reads = (lines_nb[region] - haps - 2)/2;
 		fgets(buffer, BUFFER_SIZE, readfile);
 		str = buffer;
 		file[region][i] = malloc((strlen(str) + 1) * sizeof(char));
 		if (!file[region][i]) { printf("ERROR!\n"); return 0; }
 		strcpy(file[region][i], str);
 		i++;
-		for (i; i < haps + reads + 2; i++) {
+		for (i; i < haps + 2*reads + 2; i++) {
 			fgets(buffer, BUFFER_SIZE, readfile);
 			str = buffer;
 			file[region][i] = malloc((strlen(str) + 1) * sizeof(char));
@@ -143,8 +144,8 @@ int main(int argc, char* argv[]) {
 					}
 					assert(i < NR_REGIONS);
 					fprintf(newfile, "%d\n", r);
-					for (int r1 = 0; r1 < r; r1++) {
-						fprintf(newfile, "%s", file[sorted[i]][nb_hap + 2 + l * MAX_READ_NB + r1]);
+					for (int r1 = 0; r1 < 2*r; r1++) {
+						fprintf(newfile, "%s", file[sorted[i]][nb_hap + 2 + l * 2 * MAX_READ_NB + r1]);
 					}
 				}
 			}
