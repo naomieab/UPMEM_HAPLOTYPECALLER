@@ -15,7 +15,7 @@
 #endif
 
 //RESULTS
-int64_t likelihoods[NR_REGIONS][MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
+int64_t likelihoods[NR_REGIONS][MAX_HAPLOTYPE_NUM*MAX_READ_NUM];
 uint64_t nb_cycles[NR_REGIONS];
 
 //activate dpus
@@ -24,7 +24,6 @@ uint64_t dpu_inactive[NR_REGIONS];
 //DATA in order to print results
 extern uint64_t nr_haplotypes[NR_REGIONS]; //an array keeping number of haplotypes in all regions
 extern uint64_t nr_reads[NR_REGIONS]; //idem as haplotypes
-
 
 
 int main(int argc, char* argv[]) {
@@ -52,16 +51,16 @@ int main(int argc, char* argv[]) {
 		return 0;
 	}
 
-
+ 
 	DPU_ASSERT(dpu_alloc(DPU_ALLOCATE_ALL, NULL, &set));
 	DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
-	DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
+	DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus)); 
 	DPU_ASSERT(dpu_get_nr_ranks(set, &nr_ranks));
 	printf("Nr ranks =%d, and Nr dpus = %d\n", nr_ranks, nr_dpus);
 	printf("Number of iterations: %d\n", (int)(ceil((double)TOTAL_REGIONS / nr_dpus)));
-	int dpu_iterations = (int)(ceil((double)TOTAL_REGIONS / nr_dpus));
+	int dpu_iterations = 4;//(int)(ceil((double)TOTAL_REGIONS / nr_dpus))
 	for (int i = 0; i < NR_REGIONS; i++) { dpu_inactive[i] = 0; }
-
+	
 	//i is the iteration: if we have several rounds to process on a set of dpus, each iteration process a single round
 	for (int iteration = 0; iteration < dpu_iterations; iteration++) {
 		printf("Starting iteration: %d\n", iteration);
@@ -80,17 +79,19 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "Finished DPU work: time required %ld\n", end - start);
 		dpu_time += (end - start);
 
-
+		
+		 
+		
 		DPU_FOREACH(set, dpu, each_dpu) {
 			DPU_ASSERT(dpu_prepare_xfer(dpu, &likelihoods[each_dpu]));
 		}
-		DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, "likelihoods", 0, MAX_HAPLOTYPE_NUM * MAX_READ_NUM * sizeof(int64_t), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, "likelihoods", 0, MAX_HAPLOTYPE_NUM* MAX_READ_NUM * sizeof(int64_t), DPU_XFER_DEFAULT));
 
 		DPU_FOREACH(set, dpu, each_dpu) {
 			DPU_ASSERT(dpu_prepare_xfer(dpu, &nb_cycles[each_dpu]));
 		}
 		DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, "nb_cycles", 0, sizeof(uint64_t), DPU_XFER_DEFAULT));
-
+		
 
 		for (int i = 0; i < nr_dpus; i++) {
 			int region_index = iteration*nr_dpus+i;
@@ -101,8 +102,8 @@ int main(int argc, char* argv[]) {
 			//fprintf(result_file, "First likelihood : %d, %d, %d, %d\n", likelihoods[i][0][0], likelihoods[i][0][1], likelihoods[i][1][0], likelihoods[i][1][1]);
 			for (int k = 0; k < nr_reads[i]; k++) {
 				for (int j = 0; j < nr_haplotypes[i]; j++) {
-					//printf("%d => %f | ", likelihoods[i][j][k], (double)likelihoods[i][j][k] / (double)ONE);
-		  			fprintf(result_file, "%f, ", (double)likelihoods[i][j][k] / (double)ONE);
+					//fprintf(result_file, "%d => %f , ", likelihoods[i][j* MAX_READ_NUM + k], (double)likelihoods[i][j* MAX_READ_NUM + k] / (double)ONE);
+		  			fprintf(result_file, "%f, ", (double)likelihoods[i][j* MAX_READ_NUM + k] / (double)ONE);
 				}
 				fprintf(result_file,"\n");
 			}

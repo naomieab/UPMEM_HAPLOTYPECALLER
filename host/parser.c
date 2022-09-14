@@ -17,7 +17,7 @@ uint32_t haplotypes_len[TOTAL_HAPS];
 int32_t haplotypes_val[TOTAL_HAPS];
 char haplotypes_array[TOTAL_HAPS * MAX_HAPLOTYPE_LENGTH];
 uint32_t priors[TOTAL_READS * MAX_READ_LENGTH * 2];
-
+int32_t matchToIndel[TOTAL_READS * MAX_READ_LENGTH];
 
 
 //hap_idx is the partial sum of the all the reads in the regions before
@@ -52,6 +52,13 @@ void add_read(FILE* file, int read_idx, int index) {
 		double errorProbLog10 = log10(pow((double)10, -(double)quality / 10.0)) - log10(3);
 		priors[(read_idx + index) * 2 * MAX_READ_LENGTH + 2 * j] = (int)(probLog10 * ONE);
 		priors[(read_idx + index) * 2 * MAX_READ_LENGTH + 2 * j + 1] = (int)(errorProbLog10 * ONE);
+	}
+	assert(fgets(buffer, BUFFER_SIZE, file));
+	token = strtok(buffer, ",");
+	j=0;
+	for (token = strtok(NULL, ","); token != NULL && j < read_length; token = strtok(NULL, ","), j++) {
+		int quality = atoi(token);
+		matchToIndel[(read_idx + index) * MAX_READ_LENGTH + j] = (int)(log10(pow((double)10, -(double)quality / 10.0))*ONE);
 	}
 }
 
