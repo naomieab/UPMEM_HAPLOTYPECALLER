@@ -11,7 +11,7 @@ BARRIER_INIT(my_barrier, NR_TASKLETS);
 
 //results 
 __host uint64_t nb_cycles;
-__mram_noinit int64_t likelihoods[MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
+__mram_noinit int64_t likelihoods[MAX_HAPLOTYPE_NUM*MAX_READ_NUM];
 
 //WRAM Data
 __host uint64_t nr_reads;
@@ -25,7 +25,7 @@ __mram_noinit uint32_t mram_priors[2 * MAX_READ_NUM * MAX_READ_LENGTH];//[MAX_RE
 __mram_noinit uint32_t mram_haplotypes_len[MAX_HAPLOTYPE_NUM];
 __mram_noinit int32_t mram_haplotypes_val[MAX_HAPLOTYPE_NUM];
 __mram_noinit char mram_haplotypes_array[MAX_HAPLOTYPE_NUM * MAX_HAPLOTYPE_LENGTH];//[MAX_HAPLOTYPE_NUM][MAX_HAPLOTYPE_LENGTH];
-
+__mram_noinit int32_t mram_matchToIndelArray[MAX_READ_NUM * MAX_READ_LENGTH];
 
 
 
@@ -36,13 +36,14 @@ int transition[TRANS_PROB_ARRAY_LENGTH] = { 0, -23, -2048, -512, -2048, -512, -2
 __dma_aligned int64_t res[NR_TASKLETS];
 
 
+
 __dma_aligned uint64_t reads_len[NR_TASKLETS];
 __dma_aligned char reads_array[NR_TASKLETS][MAX_READ_LENGTH];
 __dma_aligned int priors[NR_TASKLETS][2 * MAX_READ_LENGTH];
 __dma_aligned uint32_t haplotypes_len[MAX_HAPLOTYPE_NUM]; //instead of sending haplotypes lengths now we will send the log10(1/hapLength) fixed number
 __dma_aligned int32_t haplotypes_val[MAX_HAPLOTYPE_NUM];
 __dma_aligned char haplotypes_array[MAX_HAPLOTYPE_NUM * MAX_HAPLOTYPE_LENGTH];
-
+__dma_aligned int32_t matchToIndelArray[NR_TASKLETS][MAX_READ_LENGTH];
 
 //Matrix cache (WRAM)
 __dma_aligned int MATCH_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
@@ -85,8 +86,9 @@ void allocate_read_for_tasklet(uint32_t read_idx_th0, uint32_t tasklet_id) {
 	mram_read(&mram_reads_array[read_offset], &reads_array[tasklet_id][0], read_size * sizeof(char));
 	assert(2 * read_size * sizeof(int) <= 2 * MAX_READ_LENGTH * sizeof(uint32_t));
 	mram_read(&mram_priors[2 * read_offset], &priors[tasklet_id][0], 2 * read_size * sizeof(int));
+	mram_read(&mram_matchToIndelArray[read_offset], &matchToIndelArray[tasklet_id][0], read_size * sizeof(int32_t));
 }
-
+ 
 
 void allocate_haplotypes() {
 	//IMPORTANT: the transfer size must be a multiple of 8, we need to make a correction in some cases
@@ -113,7 +115,6 @@ uint32_t reserve_read(int tasklet_id) {
 	mutex_unlock(task_reservation_mutex);
 	return result;
 }
-
 
 
 int main() {
@@ -149,21 +150,24 @@ int main() {
 					uint32_t indI0 = (i - 1) % MATRIX_LINES;
 					for (j = 1; j <= reads_len[tasklet_id]; j++) {
 						int prior;
-						if (reads_array[tasklet_id][j - 1] == haplotypes_array[haplotype_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)]) {
+						if (reads_array[tasklet_id][j - 1] == haplotypes_array[haplotype_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] ||
+							reads_array[tasklet_id][j-1] == 'N' || haplotypes_array[haplotype_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] == 'N') {
 							prior = priors[tasklet_id][2 * (j - 1)];
-						}
+						} 
 						else {
 							prior = priors[tasklet_id][2 * (j - 1) + 1];
 						}
 
+						
+						int matchToIndel = (j==1)? -2048:matchToIndelArray[tasklet_id][j-2];
 						MATCH_CACHE[tasklet_id][indI][j] = fixedAdd(prior, log10SumLog10(log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j - 1], transition[matchToMatch]),
 							fixedAdd(INSERTION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])),
 							fixedAdd(DELETION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])));
 
-						INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], transition[matchToInsertion]), fixedAdd(INSERTION_CACHE[tasklet_id][indI][j - 1], transition[insertionToInsertion]));
+						INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], matchToIndel), fixedAdd(INSERTION_CACHE[tasklet_id][indI][j - 1], transition[insertionToInsertion]));
 
-						DELETION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], transition[matchToDeletion]), fixedAdd(DELETION_CACHE[tasklet_id][indI0][j], transition[deletionToDeletion]));
-
+						DELETION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], matchToIndel), fixedAdd(DELETION_CACHE[tasklet_id][indI0][j], transition[deletionToDeletion]));
+						
 					}
 					//The last iteration on the read length is quite different (different transition probability used in 
 					//INSERTION and DELETION matrix element computation)
@@ -171,14 +175,15 @@ int main() {
 					j--; //recompute at the last index
 					INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], transition[lastBaseTransition]), fixedAdd(INSERTION_CACHE[tasklet_id][indI][j - 1], transition[insertionToInsertion]));
 					DELETION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], transition[lastBaseTransition]), fixedAdd(DELETION_CACHE[tasklet_id][indI0][j], transition[deletionToDeletion]));
-					res[tasklet_id] = log10SumLog10(res[tasklet_id], log10SumLog10(MATCH_CACHE[tasklet_id][i % MATRIX_LINES][reads_len[tasklet_id] - 1], INSERTION_CACHE[tasklet_id][i % MATRIX_LINES][reads_len[tasklet_id] - 1]));
+					res[tasklet_id] = log10SumLog10(res[tasklet_id], log10SumLog10(MATCH_CACHE[tasklet_id][i % MATRIX_LINES][j/*reads_len[tasklet_id]*/], INSERTION_CACHE[tasklet_id][i % MATRIX_LINES][j/*reads_len[tasklet_id] */ ]));
+					
 				}
 
-				mram_write(&res[tasklet_id], &likelihoods[haplotype_idx][read_idx], sizeof(res[0]));
+				mram_write(&res[tasklet_id], &likelihoods[haplotype_idx* MAX_READ_NUM + read_idx], sizeof(res[0]));
 			}
 		}
 
-
+		
 	}
 
 	barrier_wait(&my_barrier);

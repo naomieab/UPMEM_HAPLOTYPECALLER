@@ -18,8 +18,10 @@
 #define insertionToInsertion 3
 #define matchToDeletion 4
 #define deletionToDeletion 5
+//can remove lastbasetrans
 #define lastBaseTransition 6 //replaces matchToInsertion and matchToDeletion in the last iteration of the read length
 #define TRANS_PROB_ARRAY_LENGTH 7
+
 
 #define NR_HAPLOTYPE 1
 #define HAPLOTYPE_LEN 10
