@@ -10,8 +10,8 @@ extern uint64_t dpu_inactive[NUMBER_DPUS];
 
 extern uint32_t offset[NR_REGIONS][OFFSET_SIZE];
 extern uint32_t dpu_region_start_index[NUMBER_DPUS];
-uint32_t haplotype_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU+1];
-uint32_t read_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU+1];
+extern uint32_t haplotype_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU+1];
+extern uint32_t read_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU+1];
 
 extern uint64_t reads_len[TOTAL_READS]; 
 extern char reads_array[TOTAL_READS * MAX_READ_LENGTH]; 

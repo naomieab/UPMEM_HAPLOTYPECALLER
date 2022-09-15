@@ -147,9 +147,9 @@ uint32_t reserve_read(int tasklet_id) {
 
 		int transfer_size;
 		// Only copy as far as you can at first
-		if (number_of_haplotypes+haplotypes_buffer_start > NR_WRAM_HAPLOTYPES) {
+		if (number_of_haplotypes+haplotypes_buffer_end > NR_WRAM_HAPLOTYPES) {
 			assert(number_of_haplotypes<=NR_WRAM_HAPLOTYPES);
-			transfer_size = (NR_WRAM_HAPLOTYPES-haplotypes_buffer_start);
+			transfer_size = (NR_WRAM_HAPLOTYPES-haplotypes_buffer_end);
 		} else {
 			transfer_size = number_of_haplotypes;
 		}

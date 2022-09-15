@@ -18,10 +18,10 @@
 
 int64_t likelihoods[NUMBER_DPUS][MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
 
-uint64_t nb_cycles[NR_REGIONS];
+uint64_t nb_cycles[NUMBER_DPUS];
 
 //activate dpus
-uint64_t dpu_inactive[NR_REGIONS];
+uint64_t dpu_inactive[NUMBER_DPUS];
 
 //DATA in order to print results
 extern uint64_t nr_haplotypes[NR_REGIONS]; //an array keeping number of haplotypes in all regions
@@ -66,14 +66,14 @@ int main(int argc, char* argv[]) {
 	int dpu_iterations = (int)(ceil((double)TOTAL_REGIONS / nr_dpus));
     int global_region_index = 0;
 
-	for (int i = 0; i < NR_REGIONS; i++) { dpu_inactive[i] = 0; }
+	for (int i = 0; i < NUMBER_DPUS; i++) { dpu_inactive[i] = 0; }
 	
 	//i is the iteration: if we have several rounds to process on a set of dpus, each iteration process a single round
 	for (int iteration = 0; iteration < dpu_iterations; iteration++) {
 		printf("Starting iteration: %d\n", iteration);
 		if (iteration == dpu_iterations-1) {
 			nr_dpus = TOTAL_REGIONS % NR_REGIONS;
-			for (int i = nr_dpus; i < NR_REGIONS; i++) { dpu_inactive[i] = 1; }
+			for (int i = nr_dpus; i < NUMBER_DPUS; i++) { dpu_inactive[i] = 1; }
 		}
 		data_file = read_data(data_file, nr_dpus);
 
