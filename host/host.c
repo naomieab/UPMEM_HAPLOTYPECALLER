@@ -7,7 +7,7 @@
 #include <time.h>
 
 #include "parser.h"
-#include "populateMRAM.h"    
+#include "populateMRAM.h"	
 #include "constants.h"
 
 #ifndef DPU_BINARY
@@ -16,7 +16,8 @@
 
 //RESULTS
 
-int64_t likelihoods[NUMBER_DPUS][MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
+int64_t *likelihoods[NUMBER_DPUS];
+// int64_t likelihoods[NUMBER_DPUS][MAX_HAPLOTYPE_NUM][MAX_READ_NUM];
 
 uint64_t nb_cycles[NUMBER_DPUS];
 
@@ -29,6 +30,13 @@ extern uint64_t nr_reads[NR_REGIONS]; //idem as haplotypes
 extern uint32_t haplotype_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU+1];
 extern uint32_t read_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU+1];
 
+void init(uint32_t nr_dpus) {
+	assert(nr_dpus<=NUMBER_DPUS);
+	printf("allocating likelihood tables (%u tables of size %lu)\n", nr_dpus, sizeof(MAX_HAPLOTYPE_NUM*MAX_READ_NUM));
+	for (int i=0; i<nr_dpus; i++) {
+		likelihoods[i] = malloc(MAX_HAPLOTYPE_NUM*MAX_READ_NUM*sizeof(int64_t));
+	}
+}
 
 int main(int argc, char* argv[]) {
 	if (argc != 4) {
@@ -64,9 +72,11 @@ int main(int argc, char* argv[]) {
 	printf("Number of iterations: %d\n", (int)(ceil((double)TOTAL_REGIONS / nr_dpus)));
 
 	int dpu_iterations = (int)(ceil((double)TOTAL_REGIONS / nr_dpus));
-    int global_region_index = 0;
+	int global_region_index = 0;
 
 	for (int i = 0; i < NUMBER_DPUS; i++) { dpu_inactive[i] = 0; }
+
+	init(nr_dpus);
 	
 	//i is the iteration: if we have several rounds to process on a set of dpus, each iteration process a single round
 	for (int iteration = 0; iteration < dpu_iterations; iteration++) {
@@ -90,7 +100,7 @@ int main(int argc, char* argv[]) {
 		 
 		
 		DPU_FOREACH(set, dpu, each_dpu) {
-			DPU_ASSERT(dpu_prepare_xfer(dpu, &likelihoods[each_dpu]));
+			DPU_ASSERT(dpu_prepare_xfer(dpu, likelihoods[each_dpu]));
 		}
 		DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, "likelihoods", 0, MAX_HAPLOTYPE_NUM* MAX_READ_NUM * sizeof(int64_t), DPU_XFER_DEFAULT));
 
@@ -98,27 +108,29 @@ int main(int argc, char* argv[]) {
 			DPU_ASSERT(dpu_prepare_xfer(dpu, &nb_cycles[each_dpu]));
 		}
 		DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_FROM_DPU, "nb_cycles", 0, sizeof(uint64_t), DPU_XFER_DEFAULT));
+
+		fprintf(stderr, "Finished transfering data back\n");
 		
 
 		for (int i = 0; i < nr_dpus; i++) {
-            int local_region_index = -1;
-            // fprintf(result_file, "\nDPU %d\n", i);
+			int local_region_index = -1;
+			// fprintf(result_file, "\nDPU %d\n", i);
 			fprintf(csv_result, "%d\n", nb_cycles[i]);
 			// fprintf(result_file, "Number of haplotypes = %d\n", nr_haplotypes[i]);
 			// fprintf(result_file, "Number of reads = %d\n", nr_reads[i]);
 			// fprintf(result_file, "First likelihood : %d, %d, %d, %d\n", likelihoods[i][0][0], likelihoods[i][0][1], likelihoods[i][1][0], likelihoods[i][1][1]);
 			for (int k = 0; k < nr_reads[i]; k++) {
 
-                if (k >= read_region_starts[i][local_region_index+1]) {
-                    local_region_index++;
-                    global_region_index++;
-                    // fprintf(result_file, "\nREGION %d\n", global_region_index);
-			        // fprintf(result_file, "Number of haplotypes = %d\n", haplotype_region_starts[i][local_region_index+1]-haplotype_region_starts[i][local_region_index]);
-			        // fprintf(result_file, "Number of reads = %d\n", read_region_starts[i][local_region_index+1]-read_region_starts[i][local_region_index]);
-                }
+				if (k >= read_region_starts[i][local_region_index+1]) {
+					local_region_index++;
+					global_region_index++;
+					// fprintf(result_file, "\nREGION %d\n", global_region_index);
+					// fprintf(result_file, "Number of haplotypes = %d\n", haplotype_region_starts[i][local_region_index+1]-haplotype_region_starts[i][local_region_index]);
+					// fprintf(result_file, "Number of reads = %d\n", read_region_starts[i][local_region_index+1]-read_region_starts[i][local_region_index]);
+				}
 				for (int j = haplotype_region_starts[i][local_region_index]; j < haplotype_region_starts[i][local_region_index+1]; j++) {
 					//printf("%d => %f | ", likelihoods[i][j][k], (double)likelihoods[i][j][k] / (double)ONE);
-		  			fprintf(result_file, "%f, ", (double)likelihoods[i][j][k] / (double)ONE);
+		  			fprintf(result_file, "%f, ", (double)likelihoods[i][j*MAX_READ_NUM + k] / (double)ONE);
 
 				}
 				fprintf(result_file,"\n");
