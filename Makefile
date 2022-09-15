@@ -19,7 +19,7 @@ DPUF_TARGET := ${BUILDDIR}/haplotype_dpuFixedSize
 
 HOST_SOURCES := $(wildcard ${HOST_DIR}/*.h ${HOST_DIR}/*.c)
 DPU_SOURCES := $(wildcard ${DPU_DIR}/*.c)
-DPU_DEPENDENCIES := $(wildcard ${DPU_DIR}/*.h ${DPU_DIR}/*.c)
+DPU_DEPENDENCIES := $(wildcard ${DPU_DIR}/*.h ${DPU_DIR}/*.c host/constants.h)
 
 .PHONY: all clean test_c
 
