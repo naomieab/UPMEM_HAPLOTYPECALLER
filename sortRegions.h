@@ -1,8 +1,8 @@
-#define NR_REGIONS 160726//132108 //number of regions in the csv file
+#define NR_REGIONS 129260//132108 //number of regions in the csv file
 #define BUFFER_SIZE 4098
 #define TO_SEPARATE 0  //number of regions big enough to separate them (last TO_SEPARATE regions will be split)
 
-
+/*
 int sorted[NR_REGIONS] = { 924,
 1344,
 1596,
@@ -160728,4 +160728,4 @@ int sorted[NR_REGIONS] = { 924,
 50664120,
 50855238,
 50866696,
-50912400 };
+50912400 };*/

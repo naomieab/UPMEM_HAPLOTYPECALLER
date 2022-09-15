@@ -15,11 +15,13 @@ uint32_t read_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU+1];
 
 extern uint64_t reads_len[TOTAL_READS]; 
 extern char reads_array[TOTAL_READS * MAX_READ_LENGTH]; 
+
 extern uint64_t haplotypes_len[TOTAL_HAPS];
 extern uint64_t haplotypes_val[TOTAL_HAPS];
+
 extern char haplotypes_array[TOTAL_HAPS * MAX_HAPLOTYPE_LENGTH];
 extern uint32_t priors[TOTAL_READS * MAX_READ_LENGTH * 2];
-
+extern int32_t matchToIndel[TOTAL_READS * MAX_READ_LENGTH];
 
 
 /** 
@@ -51,6 +53,13 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	uint32_t region_read_size = MAX_READ_NUM * MAX_READ_LENGTH * sizeof(char);
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_array", 0, region_read_size, DPU_XFER_DEFAULT));
 
+	//transfer transitions quals to DPUs
+	DPU_FOREACH(set, dpu, each_dpu) {
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &matchToIndel[ offset[each_dpu][READS_ARR] ]));
+	}
+	region_read_size = MAX_READ_NUM * MAX_READ_LENGTH * sizeof(int32_t);
+	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_matchToIndelArray", 0, region_read_size, DPU_XFER_DEFAULT));
+
 
 	//transfer prior array to each dpu
 	//transfer PRIORS to DPUs
@@ -72,7 +81,9 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_val[ offset[dpu_region_start_index[each_dpu]][HAPLOTYPES_LEN_VAL_ARRAY] ]));
 	}
+
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_haplotypes_val", 0, MAX_HAPLOTYPE_NUM * sizeof(uint64_t), DPU_XFER_DEFAULT));
+
 	
 
 	//transfer NR_HAPLOTYPES to DPUs

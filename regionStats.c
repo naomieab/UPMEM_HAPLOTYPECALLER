@@ -131,6 +131,7 @@ int add_read(FILE* file) {
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	char* token = strtok(buffer, ",");
 	int read_length = strlen(token);
+	assert(fgets(buffer, BUFFER_SIZE, file)); //get transition quals
 	return read_length;
 }
 
