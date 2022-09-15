@@ -19,13 +19,13 @@
 #define LIMIT 2048 //tranfer size limit for MRAM_READ
 
 
-#define MAX_READ_LENGTH 80 //must be a multiple of 8 (because for the biggest read we bring READ_SIZE*sizeof(char))
+#define MAX_READ_LENGTH 108 //must be a multiple of 8 (because for the biggest read we bring READ_SIZE*sizeof(char))
 
 #define MAX_READ_NUM 240//1432 
 
-#define MAX_HAPLOTYPE_LENGTH 320//200 //MUST BE MULTIPLE OF 4
-#define MAX_HAPLOTYPE_NUM 34//64
-#define MAX_REGIONS_PER_DPU 9// Has to be an odd number
+#define MAX_HAPLOTYPE_LENGTH 240//200 //MUST BE MULTIPLE OF 4
+#define MAX_HAPLOTYPE_NUM 64//64
+#define MAX_REGIONS_PER_DPU 15// Has to be an odd number
 
 #define NR_WRAM_HAPLOTYPES 32
 #if NR_WRAM_HAPLOTYPES*MAX_HAPLOTYPE_LENGTH*1 < LIMIT

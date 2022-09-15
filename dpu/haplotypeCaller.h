@@ -23,15 +23,7 @@
 #define TRANS_PROB_ARRAY_LENGTH 7
 
 
-#define NR_HAPLOTYPE 1
-#define HAPLOTYPE_LEN 10
 #define MATRIX_LINES 2 //number of lines we need to store for each matrix
-#define READ_LEN 120
-#define NR_READ 16
-
-#define MAX_READS 250
-#define MAX_HAPLOTYPES 100
-
 
 
 

@@ -55,8 +55,8 @@ __dma_aligned int32_t matchToIndelArray[NR_TASKLETS][MAX_READ_LENGTH];
 
 //Matrix cache (WRAM)
 __dma_aligned int MATCH_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
-__dma_aligned int INSERTION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
-__dma_aligned int DELETION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
+__dma_aligned int INSERTION_CACHE[NR_TASKLETS][MAX_READ_LENGTH + 1];
+__dma_aligned int DELETION_CACHE[NR_TASKLETS][MAX_READ_LENGTH + 1];
 
 int fixedAdd(int a, int b) {
 	if (a == INT_MIN || b == INT_MIN) {
@@ -76,13 +76,12 @@ int fixedAdd(int a, int b) {
 void initialize_matrices(uint32_t id, uint32_t haplotype_buffer_idx) {
 	for (uint32_t idx = 0; idx < reads_len[id]; idx++) {
 		MATCH_CACHE[id][0][idx] = INT_MIN;
-		INSERTION_CACHE[id][0][idx] = INT_MIN;
-		DELETION_CACHE[id][0][idx] = INT_MIN;
+		INSERTION_CACHE[id][idx] = INT_MIN;
+		DELETION_CACHE[id][idx] = INT_MIN;
 	}
 	for (uint32_t idx = 0; idx < MATRIX_LINES; idx++) {
 		MATCH_CACHE[id][idx][0] = INT_MIN;
-		INSERTION_CACHE[id][idx][0] = INT_MIN;
-		DELETION_CACHE[id][idx][0] = haplotypes_val_buffer[haplotype_buffer_idx];
+		DELETION_CACHE[id][0] = haplotypes_val_buffer[haplotype_buffer_idx];
 	}
 }
 
@@ -105,10 +104,10 @@ void allocate_haplotypes() {
 	assert(transfer_size <= MAX_HAPLOTYPE_NUM);
 	mram_read(mram_haplotypes_len, haplotypes_len_buffer, transfer_size * sizeof(uint64_t));
 	mram_read(mram_haplotypes_val, haplotypes_val_buffer, transfer_size * sizeof(int64_t));
-    int start;
-    for (start=0; start<transfer_size*MAX_HAPLOTYPE_LENGTH*sizeof(char) - LIMIT; start+=LIMIT) {
-        mram_read((__mram_ptr void*)mram_haplotypes_array + start, (void*)haplotypes_buffer + start, LIMIT);
-    }
+	int start;
+	for (start=0; start<transfer_size*MAX_HAPLOTYPE_LENGTH*sizeof(char) - LIMIT; start+=LIMIT) {
+		mram_read((__mram_ptr void*)mram_haplotypes_array + start, (void*)haplotypes_buffer + start, LIMIT);
+	}
 	mram_read((__mram_ptr void*)mram_haplotypes_array + start, (void*)haplotypes_buffer + start, transfer_size * MAX_HAPLOTYPE_LENGTH * sizeof(char) - start);
 }
 
@@ -164,24 +163,24 @@ uint32_t reserve_read(int tasklet_id) {
 			mram_read(&mram_haplotypes_len[haplotype_copy_start_index], haplotypes_len_buffer, transfer_size * sizeof(uint64_t));
 			mram_read(&mram_haplotypes_val[haplotype_copy_start_index], haplotypes_val_buffer, transfer_size * sizeof(uint64_t));
 		}
-        // Now copy the haplotypes while making sure no transfer is bigger than LIMIT
-        #define BUFFER_SIZE (MAX_HAPLOTYPE_LENGTH*NR_WRAM_HAPLOTYPES*sizeof(char))
-        int transfer_end = (haplotypes_buffer_end+transfer_size)*MAX_HAPLOTYPE_LENGTH;
-        for (int written = 0; haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written < transfer_end; ) {
-            int write_length;
-            if (written+LIMIT+haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH >= transfer_end) {
-                write_length = transfer_end - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
-            } else {
-                write_length = LIMIT;
-            }
-            if ((haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length)%BUFFER_SIZE < haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length) {
-                write_length = BUFFER_SIZE - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
-            }
-            mram_read((__mram_ptr void*)&mram_haplotypes_array[haplotype_copy_start_index*MAX_HAPLOTYPE_LENGTH*sizeof(char)] + written,
-                      (void*)haplotypes_buffer + (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written)%BUFFER_SIZE,
-                      write_length);
-            written += write_length;
-        }
+		// Now copy the haplotypes while making sure no transfer is bigger than LIMIT
+		#define BUFFER_SIZE (MAX_HAPLOTYPE_LENGTH*NR_WRAM_HAPLOTYPES*sizeof(char))
+		int transfer_end = (haplotypes_buffer_end+transfer_size)*MAX_HAPLOTYPE_LENGTH;
+		for (int written = 0; haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written < transfer_end; ) {
+			int write_length;
+			if (written+LIMIT+haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH >= transfer_end) {
+				write_length = transfer_end - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
+			} else {
+				write_length = LIMIT;
+			}
+			if ((haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length)%BUFFER_SIZE < haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length) {
+				write_length = BUFFER_SIZE - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
+			}
+			mram_read((__mram_ptr void*)&mram_haplotypes_array[haplotype_copy_start_index*MAX_HAPLOTYPE_LENGTH*sizeof(char)] + written,
+					  (void*)haplotypes_buffer + (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written)%BUFFER_SIZE,
+					  write_length);
+			written += write_length;
+		}
 		// Update the position of buffer_end
 		haplotypes_buffer_end += number_of_haplotypes;
 		haplotypes_buffer_end %= NR_WRAM_HAPLOTYPES;
@@ -236,7 +235,7 @@ int main() {
 				for (uint32_t i = 1; i <= haplotypes_len_buffer[haplotype_buffer_idx]; i++) {
 					uint32_t indI = i % MATRIX_LINES;
 					uint32_t indI0 = (i - 1) % MATRIX_LINES;
-					for (j = 1; j <= reads_len[tasklet_id]; j++) {
+					for (j = 1; j <= reads_len[tasklet_id]-1; j++) {
 						int prior;
 
 						if (reads_array[tasklet_id][j - 1] == haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] ||
@@ -251,21 +250,38 @@ int main() {
 						
 						int matchToIndel = (j==1)? -2048:matchToIndelArray[tasklet_id][j-2];
 						MATCH_CACHE[tasklet_id][indI][j] = fixedAdd(prior, log10SumLog10(log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j - 1], transition[matchToMatch]),
-							fixedAdd(INSERTION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])),
-							fixedAdd(DELETION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])));
+							fixedAdd(INSERTION_CACHE[tasklet_id][j - 1], transition[indelToMatch])),
+							fixedAdd(DELETION_CACHE[tasklet_id][j - 1], transition[indelToMatch])));
 
-						INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], matchToIndel), fixedAdd(INSERTION_CACHE[tasklet_id][indI][j - 1], transition[insertionToInsertion]));
+						INSERTION_CACHE[tasklet_id][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], matchToIndel), fixedAdd(INSERTION_CACHE[tasklet_id][j - 1], transition[insertionToInsertion]));
 
-						DELETION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], matchToIndel), fixedAdd(DELETION_CACHE[tasklet_id][indI0][j], transition[deletionToDeletion]));
+						DELETION_CACHE[tasklet_id][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], matchToIndel), fixedAdd(DELETION_CACHE[tasklet_id][j], transition[deletionToDeletion]));
 						
 					}
 					//The last iteration on the read length is quite different (different transition probability used in 
 					//INSERTION and DELETION matrix element computation)
-					//So we recompute these two last elements
-					j--; //recompute at the last index
-					INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], transition[lastBaseTransition]), fixedAdd(INSERTION_CACHE[tasklet_id][indI][j - 1], transition[insertionToInsertion]));
-					DELETION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], transition[lastBaseTransition]), fixedAdd(DELETION_CACHE[tasklet_id][indI0][j], transition[deletionToDeletion]));
-					res[tasklet_id] = log10SumLog10(res[tasklet_id], log10SumLog10(MATCH_CACHE[tasklet_id][i % MATRIX_LINES][j/*reads_len[tasklet_id]*/], INSERTION_CACHE[tasklet_id][i % MATRIX_LINES][j/*reads_len[tasklet_id] */ ]));
+					//So we compute these last elements separately
+					{
+						int prior;
+
+						if (reads_array[tasklet_id][j - 1] == haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] ||
+							reads_array[tasklet_id][j-1] == 'N' || haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] == 'N') {
+
+							prior = priors[tasklet_id][2 * (j - 1)];
+						} 
+						else {
+							prior = priors[tasklet_id][2 * (j - 1) + 1];
+						}
+
+						
+						int matchToIndel = (j==1)? -2048:matchToIndelArray[tasklet_id][j-2];
+						MATCH_CACHE[tasklet_id][indI][j] = fixedAdd(prior, log10SumLog10(log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j - 1], transition[matchToMatch]),
+							fixedAdd(INSERTION_CACHE[tasklet_id][j - 1], transition[indelToMatch])),
+							fixedAdd(DELETION_CACHE[tasklet_id][j - 1], transition[indelToMatch])));
+						INSERTION_CACHE[tasklet_id][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], transition[lastBaseTransition]), fixedAdd(INSERTION_CACHE[tasklet_id][j - 1], transition[insertionToInsertion]));
+						DELETION_CACHE[tasklet_id][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], transition[lastBaseTransition]), fixedAdd(DELETION_CACHE[tasklet_id][j], transition[deletionToDeletion]));
+					}
+					res[tasklet_id] = log10SumLog10(res[tasklet_id], log10SumLog10(MATCH_CACHE[tasklet_id][i % MATRIX_LINES][j/*reads_len[tasklet_id]*/], INSERTION_CACHE[tasklet_id][j/*reads_len[tasklet_id] */ ]));
 					
 				}
 

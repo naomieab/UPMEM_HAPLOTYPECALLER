@@ -50,6 +50,7 @@ void add_read(FILE* file, int read_idx, int index) {
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	char* token = strtok(buffer, ",");
 	int read_length = strlen(token);
+	assert(read_length<=MAX_READ_LENGTH);
 	reads_len[read_idx + index] = read_length;
 	strncpy(&reads_array[(read_idx + index) * MAX_READ_LENGTH], token, MAX_READ_LENGTH);
 	int j = 0;
@@ -62,6 +63,7 @@ void add_read(FILE* file, int read_idx, int index) {
 		//FIXME: reuse the commented out matchToIndel instead
 		matchToIndel[(read_idx + index) * MAX_READ_LENGTH + j] = (int)(log10(pow((double)10, -(double)quality / 10.0))*ONE);
 	}
+	assert(j>0);
 	/*
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	token = strtok(buffer, ",");
@@ -101,7 +103,7 @@ FILE* read_data(FILE* file, int nr_dpus) {
 	int nr_reads_current_region;
 	int nr_haplotypes_current_region;
 	int region_complexity;
-	while (current_dpu < nr_dpus && fgets(buffer, BUFFER_SIZE, file) != 0 && current_region < NR_REGIONS) {
+	while (current_dpu < nr_dpus && current_region < NR_REGIONS && fgets(buffer, BUFFER_SIZE, file) != 0) {
 		int sum_read_lengths = 0;
 		int sum_haplotypes_lengths = 0;
 		nr_haplotypes_current_region = atoi(buffer);
@@ -118,8 +120,8 @@ FILE* read_data(FILE* file, int nr_dpus) {
 		}
 		read_idx += nr_reads_current_region;
 		region_complexity = sum_haplotypes_lengths*sum_read_lengths;
-		if (nr_haplotypes_current_region + nr_haplotypes[current_dpu] < MAX_HAPLOTYPE_NUM &&
-			nr_reads_current_region + nr_reads[current_dpu] < MAX_READ_NUM				&&
+		if (nr_haplotypes_current_region + nr_haplotypes[current_dpu] <= MAX_HAPLOTYPE_NUM &&
+			nr_reads_current_region + nr_reads[current_dpu] <= MAX_READ_NUM				&&
 			current_dpu_total_regions < MAX_REGIONS_PER_DPU							   &&
 			(current_dpu_total_complexity + region_complexity < TARGET_COMPLEXITY	   ||
 			 current_dpu_total_regions == 0)
