@@ -235,6 +235,8 @@ int main() {
 				for (uint32_t i = 1; i <= haplotypes_len_buffer[haplotype_buffer_idx]; i++) {
 					uint32_t indI = i % MATRIX_LINES;
 					uint32_t indI0 = (i - 1) % MATRIX_LINES;
+                    int insertion_diagonal_value = INSERTION_CACHE[tasklet_id][0];
+                    int deletion_diagonal_value  = DELETION_CACHE[tasklet_id][0];
 					for (j = 1; j <= reads_len[tasklet_id]-1; j++) {
 						int prior;
 
@@ -250,11 +252,13 @@ int main() {
 						
 						int matchToIndel = (j==1)? -2048:matchToIndelArray[tasklet_id][j-2];
 						MATCH_CACHE[tasklet_id][indI][j] = fixedAdd(prior, log10SumLog10(log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j - 1], transition[matchToMatch]),
-							fixedAdd(INSERTION_CACHE[tasklet_id][j - 1], transition[indelToMatch])),
-							fixedAdd(DELETION_CACHE[tasklet_id][j - 1], transition[indelToMatch])));
+							fixedAdd(insertion_diagonal_value, transition[indelToMatch])),
+							fixedAdd(deletion_diagonal_value, transition[indelToMatch])));
 
+                        insertion_diagonal_value = INSERTION_CACHE[tasklet_id][j];
 						INSERTION_CACHE[tasklet_id][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], matchToIndel), fixedAdd(INSERTION_CACHE[tasklet_id][j - 1], transition[insertionToInsertion]));
 
+                        deletion_diagonal_value = DELETION_CACHE[tasklet_id][j];
 						DELETION_CACHE[tasklet_id][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], matchToIndel), fixedAdd(DELETION_CACHE[tasklet_id][j], transition[deletionToDeletion]));
 						
 					}
@@ -276,8 +280,8 @@ int main() {
 						
 						int matchToIndel = (j==1)? -2048:matchToIndelArray[tasklet_id][j-2];
 						MATCH_CACHE[tasklet_id][indI][j] = fixedAdd(prior, log10SumLog10(log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j - 1], transition[matchToMatch]),
-							fixedAdd(INSERTION_CACHE[tasklet_id][j - 1], transition[indelToMatch])),
-							fixedAdd(DELETION_CACHE[tasklet_id][j - 1], transition[indelToMatch])));
+							fixedAdd(insertion_diagonal_value, transition[indelToMatch])),
+							fixedAdd(deletion_diagonal_value, transition[indelToMatch])));
 						INSERTION_CACHE[tasklet_id][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], transition[lastBaseTransition]), fixedAdd(INSERTION_CACHE[tasklet_id][j - 1], transition[insertionToInsertion]));
 						DELETION_CACHE[tasklet_id][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], transition[lastBaseTransition]), fixedAdd(DELETION_CACHE[tasklet_id][j], transition[deletionToDeletion]));
 					}

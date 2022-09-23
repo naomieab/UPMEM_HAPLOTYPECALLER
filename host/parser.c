@@ -64,7 +64,6 @@ void add_read(FILE* file, int read_idx, int index) {
 		matchToIndel[(read_idx + index) * MAX_READ_LENGTH + j] = (int)(log10(pow((double)10, -(double)quality / 10.0))*ONE);
 	}
 	assert(j>0);
-	/*
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	token = strtok(buffer, ",");
 	j=0;
@@ -72,7 +71,6 @@ void add_read(FILE* file, int read_idx, int index) {
 		int quality = atoi(token);
 		matchToIndel[(read_idx + index) * MAX_READ_LENGTH + j] = (int)(log10(pow((double)10, -(double)quality / 10.0))*ONE);
 	}
-	*/
 }
 
 
@@ -112,6 +110,7 @@ FILE* read_data(FILE* file, int nr_dpus) {
 			sum_haplotypes_lengths += haplotypes_len[hap_idx+i];
 		}
 		hap_idx += nr_haplotypes_current_region;
+        printf("nr_haps:%d\n", nr_haplotypes_current_region);
 		assert(nr_haplotypes_current_region <= NR_WRAM_HAPLOTYPES);
 		nr_reads_current_region = atoi(fgets(buffer, BUFFER_SIZE, file));
 		for (int i = 0; i < nr_reads_current_region; i++) {
