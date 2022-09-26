@@ -22,7 +22,7 @@ int64_t *likelihoods[NUMBER_DPUS];
 uint64_t nb_cycles[NUMBER_DPUS];
 
 //activate dpus
-uint64_t dpu_inactive[NUMBER_DPUS];
+extern uint64_t dpu_inactive[NUMBER_DPUS];
 
 //DATA in order to print results
 extern uint64_t nr_haplotypes[NR_REGIONS]; //an array keeping number of haplotypes in all regions
@@ -81,13 +81,9 @@ int main(int argc, char* argv[]) {
 	//i is the iteration: if we have several rounds to process on a set of dpus, each iteration process a single round
 	for (int iteration = 0; iteration < dpu_iterations; iteration++) {
 		printf("Starting iteration: %d\n", iteration);
-		if (iteration == dpu_iterations-1) {
-			nr_dpus = TOTAL_REGIONS % NR_REGIONS;
-			for (int i = nr_dpus; i < NUMBER_DPUS; i++) { dpu_inactive[i] = 1; }
-		}
 
 		// data_file = read_data(data_file, nr_dpus);
-        FILE* res_file = read_data(data_file, nr_dpus);
+		FILE* res_file = read_data(data_file, nr_dpus);
 
 		populate_mram(set, nr_dpus, iteration);
 
@@ -117,7 +113,7 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < nr_dpus; i++) {
 			int local_region_index = -1;
 			// fprintf(result_file, "\nDPU %d\n", i);
-			fprintf(csv_result, "%d\n", nb_cycles[i]);
+			fprintf(csv_result, "%u\n", nb_cycles[i]);
 			// fprintf(result_file, "Number of haplotypes = %d\n", nr_haplotypes[i]);
 			// fprintf(result_file, "Number of reads = %d\n", nr_reads[i]);
 			// fprintf(result_file, "First likelihood : %d, %d, %d, %d\n", likelihoods[i][0][0], likelihoods[i][0][1], likelihoods[i][1][0], likelihoods[i][1][1]);
@@ -140,12 +136,12 @@ int main(int argc, char* argv[]) {
 			fprintf(result_file, "\n\n\n");
 		}
 
-        if (res_file == NULL) {
-            printf("end of data file\n");
-            break;
-        } else {
-            data_file = res_file;
-        }
+		if (res_file == NULL) {
+			printf("end of data file\n");
+			break;
+		} else {
+			data_file = res_file;
+		}
 
 	}
 	fclose(result_file);
