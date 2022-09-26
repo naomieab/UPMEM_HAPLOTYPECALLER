@@ -85,7 +85,9 @@ int main(int argc, char* argv[]) {
 			nr_dpus = TOTAL_REGIONS % NR_REGIONS;
 			for (int i = nr_dpus; i < NUMBER_DPUS; i++) { dpu_inactive[i] = 1; }
 		}
-		data_file = read_data(data_file, nr_dpus);
+
+		// data_file = read_data(data_file, nr_dpus);
+        FILE* res_file = read_data(data_file, nr_dpus);
 
 		populate_mram(set, nr_dpus, iteration);
 
@@ -137,6 +139,13 @@ int main(int argc, char* argv[]) {
 			}
 			fprintf(result_file, "\n\n\n");
 		}
+
+        if (res_file == NULL) {
+            printf("end of data file\n");
+            break;
+        } else {
+            data_file = res_file;
+        }
 
 	}
 	fclose(result_file);
