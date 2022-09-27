@@ -103,6 +103,7 @@ FILE* read_data(FILE* file, int nr_dpus) {
 	int nr_haplotypes_current_region;
 	int region_complexity;
 	long int complexity_miss_sources[5] = {0,0,0,0,0};
+	int max_dpu_complexity = 0;
 
 	while (current_dpu < nr_dpus && current_region < NR_REGIONS && fgets(buffer, BUFFER_SIZE, file) != 0) {
 		int sum_read_lengths = 0;
@@ -153,6 +154,9 @@ FILE* read_data(FILE* file, int nr_dpus) {
 			if (current_dpu_total_regions >= MAX_REGIONS_PER_DPU) {
 				complexity_miss_sources[3] += TARGET_COMPLEXITY-current_dpu_total_complexity;
 				printf("\033[32m");
+			}
+			if (current_dpu_total_complexity > max_dpu_complexity) {
+				max_dpu_complexity = current_dpu_total_complexity;
 			}
 			printf("nr regions: %d\t\033[9m%d\033[0m\n\n", current_dpu_total_regions, current_dpu_total_regions+1);
 			dpu_inactive[current_dpu] = 0;
@@ -207,13 +211,14 @@ FILE* read_data(FILE* file, int nr_dpus) {
 		}
 	}
 
-	printf("expected overall unevenness : ~%f%\n", 100*(float)(complexity_miss_sources[0]+complexity_miss_sources[1]+complexity_miss_sources[2]+complexity_miss_sources[3]+complexity_miss_sources[4]) / (float)((long int)TARGET_COMPLEXITY*current_dpu));
+	printf("expected overall unevenness : ~%f%\n", 100*(float)(complexity_miss_sources[0]+complexity_miss_sources[1]+complexity_miss_sources[2]+complexity_miss_sources[3]+complexity_miss_sources[4]) / (float)((long int)max_dpu_complexity*current_dpu));
 	printf("loss of evenness due to : \n");
-	printf("complexity : %f%\n", 100*(float)(complexity_miss_sources[0])/(float)((long int)TARGET_COMPLEXITY*current_dpu));
-	printf("nr hapls   : %f%\n", 100*(float)(complexity_miss_sources[1])/(float)((long int)TARGET_COMPLEXITY*current_dpu));
-	printf("nr reads   : %f%\n", 100*(float)(complexity_miss_sources[2])/(float)((long int)TARGET_COMPLEXITY*current_dpu));
-	printf("nr regions : %f%\n", 100*(float)(complexity_miss_sources[3])/(float)((long int)TARGET_COMPLEXITY*current_dpu));
-	printf("last dpu   : %f%\n", 100*(float)(complexity_miss_sources[4])/(float)((long int)TARGET_COMPLEXITY*current_dpu));
+	printf("complexity : %f%\n", 100*(float)(complexity_miss_sources[0])/(float)((long int)max_dpu_complexity*current_dpu));
+	printf("nr hapls   : %f%\n", 100*(float)(complexity_miss_sources[1])/(float)((long int)max_dpu_complexity*current_dpu));
+	printf("nr reads   : %f%\n", 100*(float)(complexity_miss_sources[2])/(float)((long int)max_dpu_complexity*current_dpu));
+	printf("nr regions : %f%\n", 100*(float)(complexity_miss_sources[3])/(float)((long int)max_dpu_complexity*current_dpu));
+	printf("last dpu   : %f%\n", 100*(float)(complexity_miss_sources[4])/(float)((long int)max_dpu_complexity*current_dpu));
+	printf("highest dpu complexity : %d\n", max_dpu_complexity);
 	printf("Dpus used  : %d\n", current_dpu);
 	// Set to 0 the sizes of all unused regions
 	while (current_dpu < NUMBER_DPUS) {
