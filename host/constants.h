@@ -19,15 +19,15 @@
 #define LIMIT 2048 //tranfer size limit for MRAM_READ
 
 
-#define MAX_READ_LENGTH 108 //must be a multiple of 8 (because for the biggest read we bring READ_SIZE*sizeof(char))
+#define MAX_READ_LENGTH 80 //must be a multiple of 8 (because for the biggest read we bring READ_SIZE*sizeof(char))
 
 #define MAX_READ_NUM 240//1432 
 
-#define MAX_HAPLOTYPE_LENGTH 240//200 //MUST BE MULTIPLE OF 4
-#define MAX_HAPLOTYPE_NUM 64//64
-#define MAX_REGIONS_PER_DPU 25// Has to be an odd number
+#define MAX_HAPLOTYPE_LENGTH 384//200 //MUST BE MULTIPLE OF 4
+#define MAX_HAPLOTYPE_NUM 16//64
+#define MAX_REGIONS_PER_DPU 15// Has to be an odd number
 
-#define NR_WRAM_HAPLOTYPES 32
+#define NR_WRAM_HAPLOTYPES 16
 #if NR_WRAM_HAPLOTYPES*MAX_HAPLOTYPE_LENGTH*1 < LIMIT
 #error "DPU code has been written for a wram haplotype buffer with a size above LIMIT"
 #endif
@@ -36,14 +36,14 @@
 
 
 
-#define TOTAL_REGIONS 206046//167518//Total number of regions in the run
-#define NR_REGIONS 32000 //Maximum number of regions which can be sent in a single round (we send by chunk to dpus)
+#define TOTAL_REGIONS 132108//167518//Total number of regions in the run
+#define NR_REGIONS 19000 //Maximum number of regions which can be sent in a single round (we send by chunk to dpus)
 #define NUMBER_DPUS 2560 //Total number of dpus available (we send by chunk to dpus)
 
 
 //sum of all the reads/haplotypes in chunks of 2546 regions ( + maximum number of reads/haplotypes per region)
 #define TOTAL_READS 1165000//44853 
-#define TOTAL_HAPS 120000//8000 
+#define TOTAL_HAPS 62000//8000 
 
 //dedicated to an array containing the offsets of the data
 #define OFFSET_SIZE 5

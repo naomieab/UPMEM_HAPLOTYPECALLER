@@ -9,7 +9,6 @@ uint32_t dpu_region_start_index[NUMBER_DPUS];
 uint64_t nr_haplotypes[NUMBER_DPUS]; //an array keeping number of haplotypes in all regions
 uint64_t nr_reads[NUMBER_DPUS]; //idem as haplotypes
 
-uint64_t dpu_inactive[NUMBER_DPUS];
 
 //TOTAL_READS= maximum total number of reads in a chunk of NUMBER_DPUS regions + MAX_NUMBER OF READS IN ONE REGION  
 uint64_t reads_len[TOTAL_READS];
@@ -30,13 +29,13 @@ int32_t matchToIndel[TOTAL_READS * MAX_READ_LENGTH];
 
 //hap_idx is the partial sum of the all the reads in the regions before
 //hap_idx+index is the offset where to write this current haplotype
-void add_haplotype(FILE* file, int hap_idx, int index) {
+void add_haplotype(FILE* file, int hap_idx, int index ) {
 	if (hap_idx + index > TOTAL_HAPS) { fprintf(stderr, "Error, number of haps %d is bigger than allocated with TOTAL_HAPS\n", hap_idx + index); }
 	char buffer[BUFFER_SIZE];
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	char* hap_str = strtok(buffer, ",");
-	int hap_length = strlen(hap_str);
-	haplotypes_val[hap_idx + index] = (int)(log10(1.0 / (hap_length)) * ONE);
+	int hap_length = (strlen(hap_str)>MAX_HAPLOTYPE_LENGTH) ? MAX_HAPLOTYPE_LENGTH : strlen(hap_str); //strlen(hap_str);
+	haplotypes_val[hap_idx + index] = (int)(log10(1.0 / (hap_length-1)) * ONE);
 	haplotypes_len[hap_idx + index] = hap_length;
 	strncpy(&haplotypes_array[(hap_idx + index) * MAX_HAPLOTYPE_LENGTH], hap_str, MAX_HAPLOTYPE_LENGTH);
 	return;
@@ -51,7 +50,6 @@ void add_read(FILE* file, int read_idx, int index) {
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	char* token = strtok(buffer, ",");
 	int read_length = strlen(token);
-	assert(read_length<=MAX_READ_LENGTH);
 	reads_len[read_idx + index] = read_length;
 	strncpy(&reads_array[(read_idx + index) * MAX_READ_LENGTH], token, MAX_READ_LENGTH);
 	int j = 0;
@@ -61,14 +59,13 @@ void add_read(FILE* file, int read_idx, int index) {
 		double errorProbLog10 = log10(pow((double)10, -(double)quality / 10.0)) - log10(3);
 		priors[(read_idx + index) * 2 * MAX_READ_LENGTH + 2 * j] = (int)(probLog10 * ONE);
 		priors[(read_idx + index) * 2 * MAX_READ_LENGTH + 2 * j + 1] = (int)(errorProbLog10 * ONE);
-		//FIXME: reuse the commented out matchToIndel instead
-		matchToIndel[(read_idx + index) * MAX_READ_LENGTH + j] = (int)(log10(pow((double)10, -(double)quality / 10.0))*ONE);
 	}
-	assert(j>0);
+	
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	token = strtok(buffer, ",");
 	j=0;
-	for (token = strtok(NULL, ","); token != NULL && j < read_length; token = strtok(NULL, ","), j++) {
+	
+	for (; token != NULL && j < read_length; token = strtok(NULL, ","), j++) {
 		int quality = atoi(token);
 		matchToIndel[(read_idx + index) * MAX_READ_LENGTH + j] = (int)(log10(pow((double)10, -(double)quality / 10.0))*ONE);
 	}
@@ -78,11 +75,11 @@ void add_read(FILE* file, int read_idx, int index) {
 
 
 FILE* read_data(FILE* file, int nr_dpus) {
-	//FILE* file = fopen(filename, "r");
 	if (!file) {
 		printf("Wrong input file\n");
 		return NULL;
 	}
+ int max_complexity = 0;
 	int current_region = 0;
 	int current_dpu = 0;
 	int hap_idx = 0, read_idx = 0;
@@ -102,11 +99,8 @@ FILE* read_data(FILE* file, int nr_dpus) {
 	int nr_reads_current_region;
 	int nr_haplotypes_current_region;
 	int region_complexity;
-	long int complexity_miss_sources[5] = {0,0,0,0,0};
-	int max_dpu_complexity = 0;
-
 	while (current_dpu < nr_dpus && current_region < NR_REGIONS && fgets(buffer, BUFFER_SIZE, file) != 0) {
-		int sum_read_lengths = 0;
+    int sum_read_lengths = 0;
 		int sum_haplotypes_lengths = 0;
 		nr_haplotypes_current_region = atoi(buffer);
 		for (int i = 0; i < nr_haplotypes_current_region; i++) {
@@ -114,7 +108,6 @@ FILE* read_data(FILE* file, int nr_dpus) {
 			sum_haplotypes_lengths += haplotypes_len[hap_idx+i];
 		}
 		hap_idx += nr_haplotypes_current_region;
-		// printf("nr_haps:%d\n", nr_haplotypes_current_region);
 		assert(nr_haplotypes_current_region <= NR_WRAM_HAPLOTYPES);
 		nr_reads_current_region = atoi(fgets(buffer, BUFFER_SIZE, file));
 		for (int i = 0; i < nr_reads_current_region; i++) {
@@ -123,8 +116,8 @@ FILE* read_data(FILE* file, int nr_dpus) {
 		}
 		read_idx += nr_reads_current_region;
 		region_complexity = sum_haplotypes_lengths*sum_read_lengths;
-		if (nr_haplotypes_current_region + nr_haplotypes[current_dpu] <= MAX_HAPLOTYPE_NUM &&
-			nr_reads_current_region + nr_reads[current_dpu] <= MAX_READ_NUM				&&
+		if (nr_haplotypes_current_region + nr_haplotypes[current_dpu] < MAX_HAPLOTYPE_NUM &&
+			nr_reads_current_region + nr_reads[current_dpu] < MAX_READ_NUM				&&
 			current_dpu_total_regions < MAX_REGIONS_PER_DPU							   &&
 			(current_dpu_total_complexity + region_complexity < TARGET_COMPLEXITY	   ||
 			 current_dpu_total_regions == 0)
@@ -136,30 +129,15 @@ FILE* read_data(FILE* file, int nr_dpus) {
 			haplotype_region_starts[current_dpu][current_dpu_total_regions] = nr_haplotypes[current_dpu];
 			read_region_starts[current_dpu][current_dpu_total_regions] = nr_reads[current_dpu];
 		} else {
-			if (current_dpu_total_complexity+region_complexity >= TARGET_COMPLEXITY) {
-				complexity_miss_sources[0] += TARGET_COMPLEXITY-current_dpu_total_complexity;
-				printf("\033[32m");
-			}
+			if (current_dpu_total_complexity+region_complexity >= TARGET_COMPLEXITY) printf("\033[32m");
 			printf("complexity: %d\t\033[9m%d\033[0m\n", current_dpu_total_complexity, current_dpu_total_complexity+region_complexity);
-			if (nr_haplotypes[current_dpu]+nr_haplotypes_current_region >= MAX_HAPLOTYPE_NUM) {
-				complexity_miss_sources[1] += TARGET_COMPLEXITY-current_dpu_total_complexity;
-				printf("\033[32m");
-			}
+			if(current_dpu_total_complexity > max_complexity){ max_complexity = current_dpu_total_complexity;}
+      if (nr_haplotypes[current_dpu]+nr_haplotypes_current_region >= MAX_HAPLOTYPE_NUM) printf("\033[32m");
 			printf("nr hapls: %d\t\033[9m%d\033[0m\n", nr_haplotypes[current_dpu], nr_haplotypes[current_dpu]+nr_haplotypes_current_region);
-			if (nr_reads[current_dpu]+nr_reads_current_region >= MAX_READ_NUM) {
-				complexity_miss_sources[2] += TARGET_COMPLEXITY-current_dpu_total_complexity;
-				printf("\033[32m");
-			}
+			if (nr_reads[current_dpu]+nr_reads_current_region >= MAX_READ_NUM) printf("\033[32m");
 			printf("nr reads: %d\t\033[9m%d\033[0m\n", nr_reads[current_dpu], nr_reads[current_dpu]+nr_reads_current_region);
-			if (current_dpu_total_regions >= MAX_REGIONS_PER_DPU) {
-				complexity_miss_sources[3] += TARGET_COMPLEXITY-current_dpu_total_complexity;
-				printf("\033[32m");
-			}
-			if (current_dpu_total_complexity > max_dpu_complexity) {
-				max_dpu_complexity = current_dpu_total_complexity;
-			}
+			if (current_dpu_total_regions >= MAX_REGIONS_PER_DPU) printf("\033[32m");
 			printf("nr regions: %d\t\033[9m%d\033[0m\n\n", current_dpu_total_regions, current_dpu_total_regions+1);
-			dpu_inactive[current_dpu] = 0;
 			current_dpu++;
 			dpu_region_start_index[current_dpu] = dpu_region_start_index[current_dpu-1] + current_dpu_total_regions;
 			current_dpu_total_regions = 1;
@@ -184,8 +162,6 @@ FILE* read_data(FILE* file, int nr_dpus) {
 		printf("nr hapls: %d\n", nr_haplotypes[current_dpu]);
 		printf("nr reads: %d\n", nr_reads[current_dpu]);
 		printf("nr regions: %d\n\n", current_dpu_total_regions);
-		complexity_miss_sources[4] += TARGET_COMPLEXITY-current_dpu_total_complexity;
-		dpu_inactive[current_dpu] = 0;
 		current_dpu++;
 		dpu_region_start_index[current_dpu] = dpu_region_start_index[current_dpu-1] + current_dpu_total_regions;
 		current_dpu_total_regions = 1;
@@ -197,36 +173,14 @@ FILE* read_data(FILE* file, int nr_dpus) {
 		haplotype_region_starts[current_dpu][1] = nr_haplotypes_current_region;
 		read_region_starts[current_dpu][0] = 0;
 		read_region_starts[current_dpu][1] = nr_reads_current_region;
-
-		if (current_region < NR_REGIONS) {
-			// In the case we reached the end of the file; return NULL instead of file
-			// Set to 0 the sizes of all unused regions
-			while (current_dpu < NUMBER_DPUS) {
-				nr_reads[current_dpu] = 0;
-				nr_haplotypes[current_dpu] = 0;
-				dpu_inactive[current_dpu] = 1;
-				current_dpu++;
-			}
-			return NULL;
-		}
 	}
-
-	printf("expected overall unevenness : ~%f%\n", 100*(float)(complexity_miss_sources[0]+complexity_miss_sources[1]+complexity_miss_sources[2]+complexity_miss_sources[3]+complexity_miss_sources[4]) / (float)((long int)max_dpu_complexity*current_dpu));
-	printf("loss of evenness due to : \n");
-	printf("complexity : %f%\n", 100*(float)(complexity_miss_sources[0])/(float)((long int)max_dpu_complexity*current_dpu));
-	printf("nr hapls   : %f%\n", 100*(float)(complexity_miss_sources[1])/(float)((long int)max_dpu_complexity*current_dpu));
-	printf("nr reads   : %f%\n", 100*(float)(complexity_miss_sources[2])/(float)((long int)max_dpu_complexity*current_dpu));
-	printf("nr regions : %f%\n", 100*(float)(complexity_miss_sources[3])/(float)((long int)max_dpu_complexity*current_dpu));
-	printf("last dpu   : %f%\n", 100*(float)(complexity_miss_sources[4])/(float)((long int)max_dpu_complexity*current_dpu));
-	printf("highest dpu complexity : %d\n", max_dpu_complexity);
-	printf("Dpus used  : %d\n", current_dpu);
 	// Set to 0 the sizes of all unused regions
 	while (current_dpu < NUMBER_DPUS) {
 		nr_reads[current_dpu] = 0;
 		nr_haplotypes[current_dpu] = 0;
-		dpu_inactive[current_dpu] = 1;
 		current_dpu++;
 	}
+ printf("Sent %d regions, max complexity = %d\n", current_region, max_complexity);
 	return file;
 }
 

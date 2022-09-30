@@ -40,9 +40,10 @@ int main(int argc, char* argv[]) {
 	int reads, haps;
 	int max_hap_len = 0, max_hap_nb = 0;
 	int max_read_len = 0, max_reads_nb = 0;
-	int complexity_stat = 0;
+	long int complexity_stat = 0;
 	int  cnt_read_max = 0, cnt_read=0, counter=0;
 	char buffer[BUFFER_SIZE];
+	int max_complexity = 0;
 
 	while (fgets(buffer, BUFFER_SIZE, file) != 0 ) {
 		haps = atoi(buffer);
@@ -81,7 +82,8 @@ int main(int argc, char* argv[]) {
 			}
 			avg_hap_len += haplotypes_len[i];
 		}
-		fprintf(stat_file,"%d, %d, %d, %d, %d\n", current_region, complexity_stat, haps, reads, avg_hap_len/haps);
+		if (complexity_stat > max_complexity) { max_complexity = complexity_stat; }
+		fprintf(stat_file,"%d, %ld, %d, %d, %d\n", current_region, complexity_stat, haps, reads, avg_hap_len/haps);
 		current_region++;
 
 		counter++;
@@ -104,6 +106,7 @@ int main(int argc, char* argv[]) {
 	printf("Max number of reads in region: %d\n", max_reads_nb);
 	printf("Max read length: %d\n", max_read_len);
 	printf("Max number of reads in chunck of 2546: %d\n", cnt_read_max);
+	printf("Max complexity: %d\n", max_complexity);
 
 	// = NR_REGIONS [ 8 + 4[ #READS + 2[#READS*2READ_LEN] + 2#HAP ]   + 1[ #READS * READ_LEN   +   #HAP * HAP_LEN ] ]
 	//int bytes = current_region * (8 + max_reads_nb*(4 + max_read_len) + max_hap_nb*(8 + max_hap_len));
@@ -131,7 +134,7 @@ int add_read(FILE* file) {
 	assert(fgets(buffer, BUFFER_SIZE, file));
 	char* token = strtok(buffer, ",");
 	int read_length = strlen(token);
-	assert(fgets(buffer, BUFFER_SIZE, file)); //get transition quals
+	assert(fgets(buffer, BUFFER_SIZE, file));
 	return read_length;
 }
 

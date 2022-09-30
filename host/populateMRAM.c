@@ -52,10 +52,10 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 	}
 	uint32_t region_read_size = MAX_READ_NUM * MAX_READ_LENGTH * sizeof(char);
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_reads_array", 0, region_read_size, DPU_XFER_DEFAULT));
-
+//for(int m=0;m<14;m++){ printf("DPU%d", m); for(int o=0;o<MAX_READ_NUM;o++) { printf("Read %d lenght %d and offset in matchtoindel is %d\n", o, reads_len[offset[dpu_region_start_index[m]][READS_LEN_ARRAY]+o] , offset[m][READS_ARR]); for(int n=0;n<MAX_READ_LENGTH;n++){ printf("%d,",matchToIndel[offset[m][READS_ARR]+o*MAX_READ_LENGTH+n]);} printf("\n\n");}}
 	//transfer transitions quals to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
-		DPU_ASSERT(dpu_prepare_xfer(dpu, &matchToIndel[ offset[each_dpu][READS_ARR] ]));
+		DPU_ASSERT(dpu_prepare_xfer(dpu, &matchToIndel[ offset[dpu_region_start_index[each_dpu]][READS_ARR] ]));
 	}
 	region_read_size = MAX_READ_NUM * MAX_READ_LENGTH * sizeof(int32_t);
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_matchToIndelArray", 0, region_read_size, DPU_XFER_DEFAULT));
@@ -68,7 +68,7 @@ void populate_mram(struct dpu_set_t set, uint32_t nr_dpus, int iteration) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &priors[ offset[dpu_region_start_index[each_dpu]][PRIOR_ARR] ]));
 	}
 	DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "mram_priors", 0, prior_read_size, DPU_XFER_DEFAULT));
-
+//for(int m=0;m<150;m++){ printf("DPU%d", m); for(int o=0; o<MAX_READ_NUM;o++){printf("Read %d\n", o); for(int n=0;n<MAX_READ_LENGTH;n++){printf("%d,", priors[ offset[dpu_region_start_index[m]][PRIOR_ARR]+o*MAX_READ_LENGTH+n]);} printf("\n\n");}}
 	//transfer HAPLOTYPES_ARRAY to DPUs
 	DPU_FOREACH(set, dpu, each_dpu) {
 		DPU_ASSERT(dpu_prepare_xfer(dpu, &haplotypes_array[ offset[dpu_region_start_index[each_dpu]][HAPS_ARR] ]));
