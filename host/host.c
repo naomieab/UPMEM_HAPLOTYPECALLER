@@ -144,7 +144,6 @@ int main(int argc, char* argv[]) {
 
 	}
     printf("total cycles: %lu\n", total_cycles);
-    fflush(stdout);
 	fclose(result_file);
 	fclose(csv_result);
 	free_mem(data_file);
