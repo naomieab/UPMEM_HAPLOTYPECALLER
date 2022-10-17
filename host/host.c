@@ -73,6 +73,8 @@ int main(int argc, char* argv[]) {
 	int dpu_iterations = (int)(ceil((double)TOTAL_REGIONS / nr_dpus));
 	int global_region_index = 0;
 
+    unsigned long int total_cycles = 0;
+
 	for (int i = 0; i < NUMBER_DPUS; i++) { dpu_inactive[i] = 0; }
 
 	init(nr_dpus);
@@ -85,6 +87,11 @@ int main(int argc, char* argv[]) {
 			for (int i = nr_dpus; i < NUMBER_DPUS; i++) { dpu_inactive[i] = 1; }
 		}
 		data_file = read_data(data_file, nr_dpus);
+        if (nr_reads[0]==0) {
+            // If first dpu is empty, then all dpus are which means we have reached the end of the file.
+            printf("end of file\n");
+            break;
+        }
 
 		populate_mram(set, nr_dpus, iteration);
 
@@ -94,8 +101,6 @@ int main(int argc, char* argv[]) {
 		time(&end);
 		fprintf(stderr, "Finished DPU work: time required %ld\n", end - start);
 		dpu_time += (end - start);
-
-		
 		 
 		
 		DPU_FOREACH(set, dpu, each_dpu) {
@@ -114,6 +119,7 @@ int main(int argc, char* argv[]) {
 			int local_region_index = -1;
 			// fprintf(result_file, "\nDPU %d\n", i);
 			fprintf(csv_result, "%d\n", nb_cycles[i]);
+            total_cycles += nb_cycles[i];
 			// fprintf(result_file, "Number of haplotypes = %d\n", nr_haplotypes[i]);
 			// fprintf(result_file, "Number of reads = %d\n", nr_reads[i]);
 			// fprintf(result_file, "First likelihood : %d, %d, %d, %d\n", likelihoods[i][0][0], likelihoods[i][0][1], likelihoods[i][1][0], likelihoods[i][1][1]);
@@ -137,6 +143,8 @@ int main(int argc, char* argv[]) {
 		}
 
 	}
+    printf("total cycles: %lu\n", total_cycles);
+    fflush(stdout);
 	fclose(result_file);
 	fclose(csv_result);
 	free_mem(data_file);
