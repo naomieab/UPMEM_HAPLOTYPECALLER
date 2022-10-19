@@ -183,7 +183,7 @@ uint32_t reserve_read(int tasklet_id) {
             } else {
                 write_length = LIMIT;
             }
-            if ((haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length)%BUFFER_SIZE < (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written)%BUFFER_SIZE) {
+            if (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length > BUFFER_SIZE && haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written <= BUFFER_SIZE) {
                 write_length = BUFFER_SIZE - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
                 assert(write_length > 0);
             }
