@@ -25,18 +25,18 @@
 
 #define MAX_HAPLOTYPE_LENGTH 384//200 //MUST BE MULTIPLE OF 4
 #define MAX_HAPLOTYPE_NUM 16//64
-#define MAX_REGIONS_PER_DPU 15// Has to be an odd number
+#define MAX_REGIONS_PER_DPU 29// Has to be an odd number
 
 #define NR_WRAM_HAPLOTYPES 16
 #if NR_WRAM_HAPLOTYPES*MAX_HAPLOTYPE_LENGTH*1 < LIMIT
 #error "DPU code has been written for a wram haplotype buffer with a size above LIMIT"
 #endif
 
-#define TARGET_COMPLEXITY  1000000
+#define TARGET_COMPLEXITY  2000000
 
 
 
-#define TOTAL_REGIONS 132108//167518//Total number of regions in the run
+#define TOTAL_REGIONS 417119//Total number of regions in the run
 #define NR_REGIONS 19000 //Maximum number of regions which can be sent in a single round (we send by chunk to dpus)
 #define NUMBER_DPUS 2560 //Total number of dpus available (we send by chunk to dpus)
 
