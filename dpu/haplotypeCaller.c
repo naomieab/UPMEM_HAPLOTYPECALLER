@@ -164,9 +164,9 @@ uint32_t reserve_read(int tasklet_id) {
 		mram_read(&mram_haplotypes_len[haplotype_copy_start_index], &haplotypes_len_buffer[haplotypes_buffer_end], transfer_size * sizeof(uint64_t));
 		mram_read(&mram_haplotypes_val[haplotype_copy_start_index], &haplotypes_val_buffer[haplotypes_buffer_end], transfer_size * sizeof(uint64_t));
 		// If everything couldn't be copied, go back to the start of the circular buffer and copy what's left
-		if (number_of_haplotypes+haplotypes_buffer_start > NR_WRAM_HAPLOTYPES) {
+		if (number_of_haplotypes+haplotypes_buffer_end > NR_WRAM_HAPLOTYPES) {
 			haplotype_copy_start_index += transfer_size;// Skip what was already copied
-			transfer_size = (number_of_haplotypes-NR_WRAM_HAPLOTYPES+haplotypes_buffer_start);
+			transfer_size = (number_of_haplotypes-NR_WRAM_HAPLOTYPES+haplotypes_buffer_end);
       assert(transfer_size < NR_WRAM_HAPLOTYPES);
       assert(transfer_size * sizeof(uint64_t) <= LIMIT);
 			mram_read(&mram_haplotypes_len[haplotype_copy_start_index], haplotypes_len_buffer, transfer_size * sizeof(uint64_t));
@@ -183,7 +183,7 @@ uint32_t reserve_read(int tasklet_id) {
             } else {
                 write_length = LIMIT;
             }
-            if (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length > BUFFER_SIZE && haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written <= BUFFER_SIZE) {
+            if (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length > BUFFER_SIZE && haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written < BUFFER_SIZE) {
                 write_length = BUFFER_SIZE - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
                 assert(write_length > 0);
             }
