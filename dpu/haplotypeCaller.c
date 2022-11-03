@@ -62,41 +62,33 @@ int fixedAdd(int a, int b) {
 	if (a == INT_MIN || b == INT_MIN) {
 		return INT_MIN;
 	}
-	int a1 = a;
-	int b1 = b;
 
-	int sum = a1 + b1;
-
-	if (((~(a1 ^ b1) & (a1 ^ sum)) & INT_MIN) != 0) {
-		sum = (a1 > 0 ? INT_MAX : INT_MIN);
+	if ((~(a ^ b) & (a ^ (a+b))) < 0) {
+		return (a > 0 ? INT_MAX : INT_MIN);
 	}
-	return sum;
+	return a+b;
 }
 
 void initialize_matrices(uint32_t id, uint32_t haplotype_buffer_idx) {
-	for (uint32_t idx = 0; idx < MAX_READ_LENGTH; idx++) {
+	for (uint32_t idx = 0; idx < reads_len[id]; idx++) {
 		MATCH_CACHE[id][0][idx] = INT_MIN;
 		INSERTION_CACHE[id][0][idx] = INT_MIN;
 		DELETION_CACHE[id][0][idx] = INT_MIN;
-		MATCH_CACHE[id][1][idx] = 0;
-		INSERTION_CACHE[id][1][idx] = 0;
-		DELETION_CACHE[id][1][idx] = 0;
 	}
-	for (uint32_t idx = 0; idx < MATRIX_LINES; idx++) {
-		MATCH_CACHE[id][idx][0] = INT_MIN;
-		INSERTION_CACHE[id][idx][0] = INT_MIN;
-		DELETION_CACHE[id][idx][0] = (int) haplotypes_val_buffer[haplotype_buffer_idx];
-	}
+    MATCH_CACHE[id][1][0] = INT_MIN;
+    INSERTION_CACHE[id][1][0] = INT_MIN;
+    DELETION_CACHE[id][0][0] = (int) haplotypes_val_buffer[haplotype_buffer_idx];
+    DELETION_CACHE[id][1][0] = (int) haplotypes_val_buffer[haplotype_buffer_idx];
 }
 
 void allocate_read_for_tasklet(uint32_t read_idx_th0, uint32_t tasklet_id) {
 	mram_read(&mram_reads_len[read_idx_th0], &reads_len[tasklet_id], sizeof(uint64_t));
-   assert(reads_len[tasklet_id] <= MAX_READ_LENGTH);
+   // assert(reads_len[tasklet_id] <= MAX_READ_LENGTH);
 	int read_offset = read_idx_th0 * MAX_READ_LENGTH;
 	int read_size = ((reads_len[tasklet_id] % 8 == 0) ? reads_len[tasklet_id] : reads_len[tasklet_id] + 8 - reads_len[tasklet_id] % 8) * sizeof(char);
-	assert(read_size <= MAX_READ_LENGTH);
+	// assert(read_size <= MAX_READ_LENGTH);
 	mram_read(&mram_reads_array[read_offset], &reads_array[tasklet_id][0], read_size * sizeof(char));
-	assert(2 * read_size * sizeof(int) <= 2 * MAX_READ_LENGTH * sizeof(uint32_t));
+	// assert(2 * read_size * sizeof(int) <= 2 * MAX_READ_LENGTH * sizeof(uint32_t));
 	mram_read(&mram_priors[2 * read_offset], &priors[tasklet_id][0], 2 * read_size * sizeof(int));
 	mram_read(&mram_matchToIndelArray[read_offset], &matchToIndelArray[tasklet_id][0], read_size * sizeof(int32_t));
 }
@@ -106,13 +98,13 @@ void allocate_haplotypes() {
 	//IMPORTANT: the transfer size must be a multiple of 8, we need to make a correction in some cases
 	//We need to keep MAX_HAPLOTYPE_LENGTH multiple of 4 
 	int transfer_size = nr_haplotypes + (nr_haplotypes % 2 == 1);
-	assert(transfer_size <= MAX_HAPLOTYPE_NUM);
+	// assert(transfer_size <= MAX_HAPLOTYPE_NUM);
 	mram_read(mram_haplotypes_len, haplotypes_len_buffer, transfer_size * sizeof(uint64_t));
 	mram_read(mram_haplotypes_val, haplotypes_val_buffer, transfer_size * sizeof(int64_t));
-    int start;
-    for (start=0; start<transfer_size*MAX_HAPLOTYPE_LENGTH*sizeof(char) - LIMIT; start+=LIMIT) {
-        mram_read((__mram_ptr void*)mram_haplotypes_array + start, (void*)haplotypes_buffer + start, LIMIT);
-    }
+	int start;
+	for (start=0; start<transfer_size*MAX_HAPLOTYPE_LENGTH*sizeof(char) - LIMIT; start+=LIMIT) {
+		mram_read((__mram_ptr void*)mram_haplotypes_array + start, (void*)haplotypes_buffer + start, LIMIT);
+	}
 	mram_read((__mram_ptr void*)mram_haplotypes_array + start, (void*)haplotypes_buffer + start, transfer_size * MAX_HAPLOTYPE_LENGTH * sizeof(char) - start);
 }
 
@@ -132,12 +124,12 @@ uint32_t reserve_read(int tasklet_id) {
 	if (result < nr_reads && result>=read_region_starts[last_region_allocated+1]) {
 		last_region_allocated++;
 		uint32_t number_of_haplotypes = haplotype_region_starts[last_region_allocated+1]-haplotype_region_starts[last_region_allocated];
-		assert(number_of_haplotypes < NR_WRAM_HAPLOTYPES);
+		// assert(number_of_haplotypes < NR_WRAM_HAPLOTYPES);
 		// If there isn't enough room in the haplotypes buffer,
 		// Actively wait for other tasklets to finish
 		// Active wait isn't optimal but hopefully it shouldn't happen too often.
 		// TODO: investigate cost of active wait.
-		while (haplotypes_buffer_start != haplotypes_buffer_end && number_of_haplotypes > (haplotypes_buffer_start-haplotypes_buffer_end)%NR_WRAM_HAPLOTYPES) {
+		while (haplotypes_buffer_start != haplotypes_buffer_end && number_of_haplotypes >= (haplotypes_buffer_start-haplotypes_buffer_end)%NR_WRAM_HAPLOTYPES) {
 			int min_region = last_region_allocated;
 			for (int id=0; id<NR_TASKLETS; id++) {
 				if (current_region[id] < min_region) {
@@ -145,65 +137,66 @@ uint32_t reserve_read(int tasklet_id) {
 				}
 			}
 			// update the haplotypes_buffer_start in case any thread finished processing a region.
-			assert(min_region<NR_REGIONS);
+			// assert(min_region<NR_REGIONS);
 			haplotypes_buffer_start = haplotype_region_starts[min_region]%NR_WRAM_HAPLOTYPES;
 		}
 
 		int transfer_size;
 		// Only copy as far as you can at first
 		if (number_of_haplotypes+haplotypes_buffer_end > NR_WRAM_HAPLOTYPES) {
-			assert(number_of_haplotypes<=NR_WRAM_HAPLOTYPES);
+			// assert(number_of_haplotypes<=NR_WRAM_HAPLOTYPES);
 			transfer_size = (NR_WRAM_HAPLOTYPES-haplotypes_buffer_end);
 		} else {
 			transfer_size = number_of_haplotypes;
 		}
 		// Start copy at the end of the buffer.
 		int haplotype_copy_start_index = haplotype_region_starts[last_region_allocated];
-    assert(transfer_size < NR_WRAM_HAPLOTYPES);
-    assert(transfer_size * sizeof(uint64_t) <= LIMIT);
+		// assert(transfer_size < NR_WRAM_HAPLOTYPES);
+		// assert(transfer_size * sizeof(uint64_t) <= LIMIT);
 		mram_read(&mram_haplotypes_len[haplotype_copy_start_index], &haplotypes_len_buffer[haplotypes_buffer_end], transfer_size * sizeof(uint64_t));
 		mram_read(&mram_haplotypes_val[haplotype_copy_start_index], &haplotypes_val_buffer[haplotypes_buffer_end], transfer_size * sizeof(uint64_t));
 		// If everything couldn't be copied, go back to the start of the circular buffer and copy what's left
 		if (number_of_haplotypes+haplotypes_buffer_end > NR_WRAM_HAPLOTYPES) {
 			haplotype_copy_start_index += transfer_size;// Skip what was already copied
 			transfer_size = (number_of_haplotypes-NR_WRAM_HAPLOTYPES+haplotypes_buffer_end);
-      assert(transfer_size < NR_WRAM_HAPLOTYPES);
-      assert(transfer_size * sizeof(uint64_t) <= LIMIT);
-			mram_read(&mram_haplotypes_len[haplotype_copy_start_index], haplotypes_len_buffer, transfer_size * sizeof(uint64_t));
-			mram_read(&mram_haplotypes_val[haplotype_copy_start_index], haplotypes_val_buffer, transfer_size * sizeof(uint64_t));
+			// assert(transfer_size < NR_WRAM_HAPLOTYPES);
+			// assert(transfer_size * sizeof(uint64_t) <= LIMIT);
+			mram_read(&mram_haplotypes_len[haplotype_copy_start_index], &haplotypes_len_buffer, transfer_size * sizeof(uint64_t));
+			mram_read(&mram_haplotypes_val[haplotype_copy_start_index], &haplotypes_val_buffer, transfer_size * sizeof(uint64_t));
 		}
-        // Now copy the haplotypes while making sure no transfer is bigger than LIMIT
-        #define BUFFER_SIZE (MAX_HAPLOTYPE_LENGTH*NR_WRAM_HAPLOTYPES*sizeof(char))
-        int transfer_end = (haplotypes_buffer_end+transfer_size)*MAX_HAPLOTYPE_LENGTH;
-        for (int written = 0; haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written < transfer_end; ) {
-            int write_length;
-            if (written+LIMIT+haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH >= transfer_end) {
-                write_length = transfer_end - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
-                assert(write_length > 0);
-            } else {
-                write_length = LIMIT;
-            }
-            if (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length > BUFFER_SIZE && haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written < BUFFER_SIZE) {
-                write_length = BUFFER_SIZE - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
-                assert(write_length > 0);
-            }
-            assert(write_length <= LIMIT);
-            assert(write_length % 8 == 0 );
-            assert(haplotype_copy_start_index < MAX_HAPLOTYPE_NUM);
-            assert(haplotype_copy_start_index*MAX_HAPLOTYPE_LENGTH % 8 ==0);
-            assert(written % 8 == 0);
-            assert(((haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written)%BUFFER_SIZE) % 8 ==0);
-            mram_read((__mram_ptr void*)&mram_haplotypes_array[haplotype_copy_start_index*MAX_HAPLOTYPE_LENGTH*sizeof(char)] + written,
-                      (void*)haplotypes_buffer + (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written)%BUFFER_SIZE,
-                      write_length);
-            written += write_length;
-        }
+		// Now copy the haplotypes while making sure no transfer is bigger than LIMIT
+		#define BUFFER_SIZE (MAX_HAPLOTYPE_LENGTH*NR_WRAM_HAPLOTYPES*sizeof(char))
+		haplotype_copy_start_index = haplotype_region_starts[last_region_allocated];
+		int transfer_end = (haplotypes_buffer_end+number_of_haplotypes)*MAX_HAPLOTYPE_LENGTH;
+		for (int written = 0; haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written < transfer_end; ) {
+			int write_length;
+			if (written+LIMIT+haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH >= transfer_end) {
+				write_length = transfer_end - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
+				// assert(write_length > 0);
+			} else {
+				write_length = LIMIT;
+			}
+			if (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written+write_length > BUFFER_SIZE && haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH+written < BUFFER_SIZE) {
+				write_length = BUFFER_SIZE - (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written);
+				// assert(write_length > 0);
+			}
+			// assert(write_length <= LIMIT);
+			// assert(write_length % 8 == 0 );
+			// assert(haplotype_copy_start_index < MAX_HAPLOTYPE_NUM);
+			// assert(haplotype_copy_start_index*MAX_HAPLOTYPE_LENGTH % 8 ==0);
+			// assert(written % 8 == 0);
+			// assert(((haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written)%BUFFER_SIZE) % 8 ==0);
+			mram_read((__mram_ptr void*)&mram_haplotypes_array[haplotype_copy_start_index*MAX_HAPLOTYPE_LENGTH*sizeof(char)] + written,
+					  (void*)haplotypes_buffer + (haplotypes_buffer_end*MAX_HAPLOTYPE_LENGTH*sizeof(char) + written)%BUFFER_SIZE,
+					  write_length);
+			written += write_length;
+		}
 		// Update the position of buffer_end
 		haplotypes_buffer_end += number_of_haplotypes;
 		haplotypes_buffer_end %= NR_WRAM_HAPLOTYPES;
 	}
 	current_region[tasklet_id] = last_region_allocated;
-  int tmp = result;
+	int tmp = result;
 	mutex_unlock(task_reservation_mutex);
 
 	return tmp;
@@ -219,7 +212,7 @@ int main() {
 	if (tasklet_id == 0) {
 		free_read_idx = 0;
 		nb_cycles = 0;
-		perfcounter_config(COUNT_CYCLES, true);
+		// perfcounter_config(COUNT_CYCLES, true);
 		last_region_allocated = -1;
 		free_read_idx = 0;
 		haplotypes_buffer_start = 0;
@@ -250,22 +243,29 @@ int main() {
 				initialize_matrices(tasklet_id, haplotype_buffer_idx);
 				res[tasklet_id] = INT_MIN;
 				for (uint32_t i = 1; i < haplotypes_len_buffer[haplotype_buffer_idx]; i++) {
-					uint32_t indI = i % MATRIX_LINES;
-					uint32_t indI0 = (i - 1) % MATRIX_LINES;
-					for (j = 1; j <= reads_len[tasklet_id]; j++) {
+					uint32_t indI = i & 1;
+					uint32_t indI0 = 1-indI;
+                    uint32_t read_len = reads_len[tasklet_id];
+					for (j = 1; j <= read_len; j++) {
 						int prior;
-            assert(haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1) < NR_WRAM_HAPLOTYPES * MAX_HAPLOTYPE_LENGTH);
+			// assert(haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1) < NR_WRAM_HAPLOTYPES * MAX_HAPLOTYPE_LENGTH);
 						if (reads_array[tasklet_id][j - 1] == haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] ||
-							reads_array[tasklet_id][j-1] == 'N' || haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] == 'N') {
+							haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] == 'N' ||
+							reads_array[tasklet_id][j - 1] == 'N') {
 
 							prior = priors[tasklet_id][2 * (j - 1)];
-						} 
-						else {
+						} else {
 							prior = priors[tasklet_id][2 * (j - 1) + 1];
 						}
+						/* assert(haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'A' ||
+							   haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'C' ||
+							   haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'T' ||
+							   haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'G' ||
+							   haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'N');
+                        */
 
 						
-						int matchToIndel =matchToIndelArray[tasklet_id][j-1];
+						int matchToIndel =matchToIndelArray[tasklet_id][j - 1];
 						MATCH_CACHE[tasklet_id][indI][j] = fixedAdd(prior, log10SumLog10(log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j - 1], transition[matchToMatch]),
 							fixedAdd(INSERTION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])),
 							fixedAdd(DELETION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])));
@@ -278,8 +278,6 @@ int main() {
 					//INSERTION and DELETION matrix element computation)
 					//So we recompute these two last elements
 					j--; //recompute at the last index
-					//INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], transition[lastBaseTransition]), fixedAdd(INSERTION_CACHE[tasklet_id][indI][j - 1], transition[insertionToInsertion]));
-					//DELETION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], transition[lastBaseTransition]), fixedAdd(DELETION_CACHE[tasklet_id][indI0][j], transition[deletionToDeletion]));
 					res[tasklet_id] = log10SumLog10(res[tasklet_id], log10SumLog10(MATCH_CACHE[tasklet_id][i % MATRIX_LINES][j/*reads_len[tasklet_id]*/], INSERTION_CACHE[tasklet_id][i % MATRIX_LINES][j/*reads_len[tasklet_id] */ ]));
 					
 				}
@@ -293,7 +291,7 @@ int main() {
 
 	barrier_wait(&my_barrier);
 	if (tasklet_id == 0) {
-		nb_cycles = perfcounter_get();
+		// nb_cycles = perfcounter_get();
 	}
 	barrier_wait(&my_barrier);
 	return 1;

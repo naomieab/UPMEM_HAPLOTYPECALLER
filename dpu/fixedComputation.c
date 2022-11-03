@@ -50,10 +50,7 @@ int log_sum_lut[LUT_SIZE] = { 154, 153, 153, 152, 152, 151, 151, 150, 150, 149, 
 
 
 int log10SumLog10(int a, int b) {
-	if (a == INT_MIN && b == INT_MIN) {
-		return INT_MIN;
-	}
-	//if one of the two is INT_MIN return MAX
+	//if one of the two is INT_MIN return MAX of the two
 	if (a == INT_MIN) {
 		return b;
 	}
