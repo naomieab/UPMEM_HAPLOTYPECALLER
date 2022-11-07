@@ -75,10 +75,10 @@ void initialize_matrices(uint32_t id, uint32_t haplotype_buffer_idx) {
 		INSERTION_CACHE[id][0][idx] = INT_MIN;
 		DELETION_CACHE[id][0][idx] = INT_MIN;
 	}
-    MATCH_CACHE[id][1][0] = INT_MIN;
-    INSERTION_CACHE[id][1][0] = INT_MIN;
-    DELETION_CACHE[id][0][0] = (int) haplotypes_val_buffer[haplotype_buffer_idx];
-    DELETION_CACHE[id][1][0] = (int) haplotypes_val_buffer[haplotype_buffer_idx];
+	MATCH_CACHE[id][1][0] = INT_MIN;
+	INSERTION_CACHE[id][1][0] = INT_MIN;
+	DELETION_CACHE[id][0][0] = (int) haplotypes_val_buffer[haplotype_buffer_idx];
+	DELETION_CACHE[id][1][0] = (int) haplotypes_val_buffer[haplotype_buffer_idx];
 }
 
 void allocate_read_for_tasklet(uint32_t read_idx_th0, uint32_t tasklet_id) {
@@ -127,13 +127,14 @@ uint32_t reserve_read(int tasklet_id) {
 		// assert(number_of_haplotypes < NR_WRAM_HAPLOTYPES);
 		// If there isn't enough room in the haplotypes buffer,
 		// Actively wait for other tasklets to finish
-		// Active wait isn't optimal but hopefully it shouldn't happen too often.
+		// Active wait may not be optimal but hopefully it shouldn't happen too often.
 		// TODO: investigate cost of active wait.
 		while (haplotypes_buffer_start != haplotypes_buffer_end && number_of_haplotypes >= (haplotypes_buffer_start-haplotypes_buffer_end)%NR_WRAM_HAPLOTYPES) {
 			int min_region = last_region_allocated;
 			for (int id=0; id<NR_TASKLETS; id++) {
-				if (current_region[id] < min_region) {
-					min_region = current_region[id];
+				uint32_t current_region_value = current_region[id];
+				if (current_region_value < min_region) {
+					min_region = current_region_value;
 				}
 			}
 			// update the haplotypes_buffer_start in case any thread finished processing a region.
@@ -205,28 +206,19 @@ uint32_t reserve_read(int tasklet_id) {
 
 int main() {
 	if (dpu_inactive == 1) { return 1; }
-	// if (dpu_inactive != 1) { return 0; }// FIXME : remove that line
 	thread_id_t tasklet_id = me();
 	current_region[tasklet_id] = 0;
-	// uint32_t rounds = nr_reads / NR_TASKLETS + (nr_reads % NR_TASKLETS != 0);
 	if (tasklet_id == 0) {
 		free_read_idx = 0;
 		nb_cycles = 0;
-		// perfcounter_config(COUNT_CYCLES, true);
+		perfcounter_config(COUNT_CYCLES, true);
 		last_region_allocated = -1;
 		free_read_idx = 0;
 		haplotypes_buffer_start = 0;
 		haplotypes_buffer_end = 0;
 	}
-	/*
-	if (tasklet_id == 0) {
-		allocate_haplotypes();
-	} 
-	*/
 	barrier_wait(&my_barrier);
 
-	//for (uint32_t round = 0; round < rounds; round++) {
-		//uint32_t	read_idx = tasklet_id + NR_TASKLETS * round;
 
 	uint32_t read_idx;
 	while ((read_idx = reserve_read(tasklet_id)) < nr_reads) {
@@ -234,7 +226,6 @@ int main() {
 		if (read_idx < nr_reads) {
 			allocate_read_for_tasklet(read_idx, tasklet_id);
 			uint32_t j;
-			//From here each tasklet is in charge of reads tasklet_id, tasklet_id + NR_TASKLETS, tasklet_id + 2*NR_TASKLETS ...
 			for (uint32_t haplotype_idx = haplotype_region_starts[current_region[tasklet_id]];
 						  haplotype_idx < haplotype_region_starts[current_region[tasklet_id]+1];
 						  haplotype_idx++) {
@@ -245,10 +236,10 @@ int main() {
 				for (uint32_t i = 1; i < haplotypes_len_buffer[haplotype_buffer_idx]; i++) {
 					uint32_t indI = i & 1;
 					uint32_t indI0 = 1-indI;
-                    uint32_t read_len = reads_len[tasklet_id];
+					uint32_t read_len = reads_len[tasklet_id];
 					for (j = 1; j <= read_len; j++) {
 						int prior;
-			// assert(haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1) < NR_WRAM_HAPLOTYPES * MAX_HAPLOTYPE_LENGTH);
+						// assert(haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1) < NR_WRAM_HAPLOTYPES * MAX_HAPLOTYPE_LENGTH);
 						if (reads_array[tasklet_id][j - 1] == haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] ||
 							haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] == 'N' ||
 							reads_array[tasklet_id][j - 1] == 'N') {
@@ -262,7 +253,7 @@ int main() {
 							   haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'T' ||
 							   haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'G' ||
 							   haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'N');
-                        */
+						*/
 
 						
 						int matchToIndel =matchToIndelArray[tasklet_id][j - 1];
@@ -281,7 +272,6 @@ int main() {
 					res[tasklet_id] = log10SumLog10(res[tasklet_id], log10SumLog10(MATCH_CACHE[tasklet_id][i % MATRIX_LINES][j/*reads_len[tasklet_id]*/], INSERTION_CACHE[tasklet_id][i % MATRIX_LINES][j/*reads_len[tasklet_id] */ ]));
 					
 				}
-
 				mram_write(&res[tasklet_id], &likelihoods[haplotype_idx* MAX_READ_NUM + read_idx], sizeof(res[0]));
 			}
 		}
@@ -291,7 +281,7 @@ int main() {
 
 	barrier_wait(&my_barrier);
 	if (tasklet_id == 0) {
-		// nb_cycles = perfcounter_get();
+		nb_cycles = perfcounter_get();
 	}
 	barrier_wait(&my_barrier);
 	return 1;
