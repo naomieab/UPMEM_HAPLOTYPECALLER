@@ -4,6 +4,8 @@
 #include "mutex.h"
 #include <limits.h>
 
+// Assumes b cannot be INT_MIN!
+#define SHORTCUT_FIXEDADD(a,b) (((a)==INT_MIN) ? INT_MIN : fixedAddNoINTMIN(a,b))
 
 BARRIER_INIT(my_barrier, NR_TASKLETS);
 
@@ -57,17 +59,6 @@ __dma_aligned int32_t matchToIndelArray[NR_TASKLETS][MAX_READ_LENGTH];
 __dma_aligned int MATCH_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
 __dma_aligned int INSERTION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
 __dma_aligned int DELETION_CACHE[NR_TASKLETS][MATRIX_LINES][MAX_READ_LENGTH + 1];
-
-int fixedAdd(int a, int b) {
-	if (a == INT_MIN || b == INT_MIN) {
-		return INT_MIN;
-	}
-
-	if ((~(a ^ b) & (a ^ (a+b))) < 0) {
-		return (a > 0 ? INT_MAX : INT_MIN);
-	}
-	return a+b;
-}
 
 void initialize_matrices(uint32_t id, uint32_t haplotype_buffer_idx) {
 	for (uint32_t idx = 0; idx < reads_len[id]; idx++) {
@@ -240,14 +231,6 @@ int main() {
 					for (j = 1; j <= read_len; j++) {
 						int prior;
 						// assert(haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1) < NR_WRAM_HAPLOTYPES * MAX_HAPLOTYPE_LENGTH);
-						if (reads_array[tasklet_id][j - 1] == haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] ||
-							haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] == 'N' ||
-							reads_array[tasklet_id][j - 1] == 'N') {
-
-							prior = priors[tasklet_id][2 * (j - 1)];
-						} else {
-							prior = priors[tasklet_id][2 * (j - 1) + 1];
-						}
 						/* assert(haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'A' ||
 							   haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'C' ||
 							   haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i-1)] == 'T' ||
@@ -257,13 +240,41 @@ int main() {
 
 						
 						int matchToIndel =matchToIndelArray[tasklet_id][j - 1];
-						MATCH_CACHE[tasklet_id][indI][j] = fixedAdd(prior, log10SumLog10(log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j - 1], transition[matchToMatch]),
-							fixedAdd(INSERTION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])),
-							fixedAdd(DELETION_CACHE[tasklet_id][indI0][j - 1], transition[indelToMatch])));
+						int MI0jm = MATCH_CACHE[tasklet_id][indI0][j-1];
+						int II0jm = INSERTION_CACHE[tasklet_id][indI0][j-1];
+						int DI0jm = DELETION_CACHE[tasklet_id][indI0][j-1];
+						// int MIjm = MATCH_CACHE[tasklet_id][indI][j-1];
+						// int MI0j = MATCH_CACHE[tasklet_id][indI0][j];
+						int IIjm = INSERTION_CACHE[tasklet_id][indI][j-1];
+						int DI0j = DELETION_CACHE[tasklet_id][indI0][j];
 
-						INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], matchToIndel), fixedAdd(INSERTION_CACHE[tasklet_id][indI][j - 1], transition[insertionToInsertion]));
+						int match_cache_temp_v = log10SumLog10(log10SumLog10(
+							SHORTCUT_FIXEDADD(MI0jm, transition[matchToMatch]),
+							SHORTCUT_FIXEDADD(II0jm, transition[indelToMatch])),
+							SHORTCUT_FIXEDADD(DI0jm, transition[indelToMatch]));
+						// MATCH_CACHE[tasklet_id][indI][j] = fixedAdd(prior, match_cache_temp_v);
+						if (match_cache_temp_v == INT_MIN) {
+							MATCH_CACHE[tasklet_id][indI][j] = INT_MIN;
+						} else {
+							// Assumes prior cannot be INT_MIN
+							if (reads_array[tasklet_id][j - 1] == haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] ||
+									haplotypes_buffer[haplotype_buffer_idx * MAX_HAPLOTYPE_LENGTH + (i - 1)] == 'N' ||
+									reads_array[tasklet_id][j - 1] == 'N') {
 
-						DELETION_CACHE[tasklet_id][indI][j] = log10SumLog10(fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], matchToIndel), fixedAdd(DELETION_CACHE[tasklet_id][indI0][j], transition[deletionToDeletion]));
+								prior = priors[tasklet_id][2 * (j - 1)];
+							} else {
+								prior = priors[tasklet_id][2 * (j - 1) + 1];
+							}
+							MATCH_CACHE[tasklet_id][indI][j] = fixedAddNoINTMIN(prior, match_cache_temp_v);
+						}
+
+						INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(
+							fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], matchToIndel),
+							SHORTCUT_FIXEDADD(IIjm, transition[insertionToInsertion]));
+
+						DELETION_CACHE[tasklet_id][indI][j] = log10SumLog10(
+							fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], matchToIndel),
+							SHORTCUT_FIXEDADD(DI0j, transition[deletionToDeletion]));
 					}
 					//The last iteration on the read length is quite different (different transition probability used in 
 					//INSERTION and DELETION matrix element computation)
