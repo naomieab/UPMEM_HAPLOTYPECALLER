@@ -7,6 +7,8 @@
 // Assumes b cannot be INT_MIN!
 #define SHORTCUT_FIXEDADD(a,b) (((a)==INT_MIN) ? INT_MIN : fixedAddNoINTMIN(a,b))
 
+#define FULL_SHORTCUT_FIXEDADD(a,b) (((a)==INT_MIN) ? INT_MIN : (((b)==INT_MIN) ? INT_MIN : fixedAddNoINTMIN(a,b)))
+
 BARRIER_INIT(my_barrier, NR_TASKLETS);
 
 
@@ -269,11 +271,11 @@ int main() {
 						}
 
 						INSERTION_CACHE[tasklet_id][indI][j] = log10SumLog10(
-							fixedAdd(MATCH_CACHE[tasklet_id][indI][j - 1], matchToIndel),
+							SHORTCUT_FIXEDADD(MATCH_CACHE[tasklet_id][indI][j - 1], matchToIndel),
 							SHORTCUT_FIXEDADD(IIjm, transition[insertionToInsertion]));
 
 						DELETION_CACHE[tasklet_id][indI][j] = log10SumLog10(
-							fixedAdd(MATCH_CACHE[tasklet_id][indI0][j], matchToIndel),
+							SHORTCUT_FIXEDADD(MATCH_CACHE[tasklet_id][indI0][j], matchToIndel),
 							SHORTCUT_FIXEDADD(DI0j, transition[deletionToDeletion]));
 					}
 					//The last iteration on the read length is quite different (different transition probability used in 
