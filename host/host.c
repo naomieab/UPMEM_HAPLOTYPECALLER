@@ -9,6 +9,7 @@
 #include "parser.h"
 #include "populateMRAM.h"	
 #include "constants.h"
+#include "log.h"
 
 #ifndef DPU_BINARY
 #define DPU_BINARY "./build/haplotype_dpu"
@@ -31,7 +32,7 @@ extern uint32_t read_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU + 1];
 
 void init(uint32_t nr_dpus) {
 	assert(nr_dpus <= NUMBER_DPUS);
-	printf("allocating likelihood tables (%u tables of size %lu)\n", nr_dpus, sizeof(MAX_HAPLOTYPE_NUM * MAX_READ_NUM));
+	LOG_DEBUG("allocating likelihood tables (%u tables of size %lu)\n", nr_dpus, sizeof(MAX_HAPLOTYPE_NUM * MAX_READ_NUM));
 	for (int i = 0; i < nr_dpus; i++) {
 		likelihoods[i] = malloc(MAX_HAPLOTYPE_NUM * MAX_READ_NUM * sizeof(int64_t));
 	}
@@ -39,26 +40,28 @@ void init(uint32_t nr_dpus) {
 
 int main(int argc, char* argv[]) {
 	if (argc != 4) {
-		printf("Wrong parameters! You must provide:\n-1st argument: INPUT regions file to read (sorted)\n-2nd argument: OUTPUT file to write results computed by DPUs\n-3rd argument: PERF file to write DPUs performances (csv file)\nThe line should be make test INPUT=input_file.csv OUTPUT=output_file.txt PERF=performance_file.csv\n");
+		LOG_FATAL("Wrong parameters! You must provide:\n-1st argument: INPUT regions file to read (sorted)\n-2nd argument: OUTPUT file to write results computed by DPUs\n-3rd argument: PERF file to write DPUs performances (csv file)\nThe line should be make test INPUT=input_file.csv OUTPUT=output_file.txt PERF=performance_file.csv\n");
 		return 0;
 	}
 	struct dpu_set_t set, dpu;
 	uint32_t nr_dpus, nr_ranks, each_dpu;
-	time_t start, end, dpu_time = 0;
+	time_t start, end;
+    time_t dpu_time = 0;
+    time_t parser_time = 0;
 
 	FILE* csv_result = fopen(argv[3], "w");
 	if (!csv_result) {
-		printf("Can't open result file\n");
+		LOG_FATAL("Can't open result file\n");
 		return 0;
 	}
 	FILE* data_file = fopen(argv[1], "r");
 	if (!data_file) {
-		printf("Can't read input file");
+		LOG_FATAL("Can't read input file");
 		return 0;
 	}
 	FILE* result_file = fopen(argv[2], "w");
 	if (!result_file) {
-		printf("Can't open result file");
+		LOG_FATAL("Can't open result file");
 		return 0;
 	}
 
@@ -67,12 +70,12 @@ int main(int argc, char* argv[]) {
 	DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 	DPU_ASSERT(dpu_get_nr_dpus(set, &nr_dpus));
 	DPU_ASSERT(dpu_get_nr_ranks(set, &nr_ranks));
-	printf("Nr ranks =%d, and Nr dpus = %d\n", nr_ranks, nr_dpus);
+	LOG_INFO("Nr ranks =%d, and Nr dpus = %d\n", nr_ranks, nr_dpus);
 
 	int dpu_iterations = (int)(ceil((double)TOTAL_REGIONS / nr_dpus));
 	int global_region_index = 0;
 
-    unsigned long int total_cycles = 0;
+	unsigned long int total_cycles = 0;
 
 	for (int i = 0; i < NUMBER_DPUS; i++) { dpu_inactive[i] = 0; }
 
@@ -81,21 +84,24 @@ int main(int argc, char* argv[]) {
 	int processed_regions = 0;
 	int iteration = 0;
 	while (processed_regions < TOTAL_REGIONS) {
-		printf("Starting iteration: %d\n", iteration++);
+		LOG_TRACE("Starting iteration: %d\n", iteration);
+        time(&start);
 		data_file = read_data(data_file, nr_dpus, &processed_regions);
-        if (nr_reads[0]==0) {
-            // If first dpu is empty, then all dpus are which means we have reached the end of the file.
-            printf("end of file\n");
-            break;
-        }
+        time(&end);
+        parser_time += (end - start);
+		if (nr_reads[0]==0) {
+			// If first dpu is empty, then all dpus are which means we have reached the end of the file.
+			LOG_DEBUG("end of file\n");
+			break;
+		}
 
 		populate_mram(set, nr_dpus, iteration);
 
-		fprintf(stderr, "Launch DPU iteration %d\n", iteration);
+		LOG_INFO("Launch DPU iteration %d\n", iteration);
 		time(&start);
 		DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
 		time(&end);
-		fprintf(stderr, "Finished DPU work: time required %ld\n", end - start);
+		LOG_INFO("Finished DPU work: time required %ld\n", end - start);
 		dpu_time += (end - start);
 		 
 		
@@ -119,14 +125,14 @@ int main(int argc, char* argv[]) {
 		}
 		fprintf(stderr, "freq = %d\n", clocks_per_sec);
 		*/
-		fprintf(stderr, "Finished transfering data back\n");
+		LOG_DEBUG("Finished transfering data back\n");
 
 
-		fprintf(stderr, "Iteration %d regions processed %d dpu_time %ld\n", iteration, processed_regions, dpu_time);
+		LOG_DEBUG("Iteration %d regions processed %d dpu_time %ld\n", iteration, processed_regions, dpu_time);
 		for (int i = 0; i < nr_dpus; i++) {
 			int local_region_index = -1;
 			fprintf(csv_result, "%d\n", nb_cycles[i]);
-            total_cycles += nb_cycles[i];
+			total_cycles += nb_cycles[i];
 			for (int k = 0; k < nr_reads[i]; k++) {
 				if (k >= read_region_starts[i][local_region_index + 1]) {
 					local_region_index++;
@@ -139,12 +145,14 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
+        iteration++;
 	}
-    printf("total cycles: %lu\n", total_cycles);
+	LOG_INFO("total cycles: %lu\n", total_cycles);
 	fclose(result_file);
 	fclose(csv_result);
 	free_mem(data_file);
 	DPU_ASSERT(dpu_free(set));
-	fprintf(stderr, "TOTAL DPU TIME: %ld seconds\n", dpu_time);
+	LOG_INFO("TOTAL DPU TIME:    %ld seconds\n", dpu_time);
+	LOG_INFO("TOTAL PARSER TIME: %ld seconds\n", parser_time);
 	return 0;
 }
