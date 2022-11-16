@@ -21,6 +21,14 @@ void queue_init(struct queue_t* queue, int size) {
 	queue->next_to_release = 0;
 	queue->next_to_make_available = 0;
 	queue->next_to_take = 0;
+    queue->queue_closed = false;
+}
+
+void queue_close(struct queue_t* queue, int max_consumers) {
+    queue->queue_closed = true;
+    for (int i=0; i<max_consumers; i++) {
+        sem_post(&queue->used_semaphore);
+    }
 }
 
 /*
@@ -30,6 +38,10 @@ Returns the index of the element in the queue that can be used.
 int queue_take(struct queue_t* queue) {
 	sem_wait(&queue->used_semaphore);
 	pthread_mutex_lock(&queue->mutex);
+    if (queue->queue_closed && queue->available[queue->next_to_take] == false) {
+        pthread_mutex_unlock(&queue->mutex);
+        return -1;
+    }
 	int take_id = queue->next_to_take++;
 	queue->next_to_take %= queue->size;
 	assert(queue->available[take_id] == true);

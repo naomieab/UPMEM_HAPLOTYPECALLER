@@ -13,9 +13,11 @@ struct queue_t {
 	int             size;
 	bool*           available;
 	bool*           used;
+    bool            queue_closed;
 };
 
 void queue_init(struct queue_t* queue, int size);
+void queue_close(struct queue_t* queue, int max_consumers);
 int queue_take(struct queue_t* queue);
 void queue_release(struct queue_t* queue, int release_id);
 int queue_put(struct queue_t* queue);

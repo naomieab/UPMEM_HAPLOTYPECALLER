@@ -30,6 +30,9 @@ void* consumer(void* arg) {
 	int n = ((int*) arg)[0];
 	for (int i=0; i<n; i++) {
 		int index = queue_take(&queue);
+        if (index < 0) {
+            return 0;
+        }
 		int result_index = data[index];
 		result[result_index] += 1;
 		queue_release(&queue, index);
@@ -38,7 +41,7 @@ void* consumer(void* arg) {
 }
 
 int thread_starts[PRODUCER_THREADS+1];
-int data_per_consumer = DATA_SIZE/CONSUMER_THREADS;
+int data_per_consumer = DATA_SIZE/CONSUMER_THREADS+2;
 
 int main() {
 	pthread_t threads[8];
@@ -56,7 +59,11 @@ int main() {
 	for (int i=0; i<PRODUCER_THREADS; i++) {
 		pthread_create(&threads[i], NULL, producer, &thread_starts[i]);
 	}
-	for (int i=0; i<PRODUCER_THREADS+CONSUMER_THREADS; i++) {
+	for (int i=0; i<PRODUCER_THREADS; i++) {
+		pthread_join(threads[i], NULL);
+	}
+    queue_close(&queue, CONSUMER_THREADS);
+	for (int i=PRODUCER_THREADS; i<PRODUCER_THREADS+CONSUMER_THREADS; i++) {
 		pthread_join(threads[i], NULL);
 	}
 	bool error = false;
