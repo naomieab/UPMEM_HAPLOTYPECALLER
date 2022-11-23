@@ -6,6 +6,7 @@
 #include <math.h>
 #include <time.h>
 
+#include "buffers.h"
 #include "parser.h"
 #include "populateMRAM.h"	
 #include "constants.h"
@@ -28,11 +29,53 @@ extern uint64_t nr_reads[NR_REGIONS]; //idem as haplotypes
 extern uint32_t haplotype_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU + 1];
 extern uint32_t read_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU + 1];
 
-void init(uint32_t nr_dpus) {
-	assert(nr_dpus <= NUMBER_DPUS);
-	LOG_DEBUG("allocating likelihood tables (%u tables of size %lu)\n", nr_dpus, sizeof(MAX_HAPLOTYPE_NUM * MAX_READ_NUM));
-	for (int i = 0; i < nr_dpus; i++) {
-		likelihoods[i] = malloc(MAX_HAPLOTYPE_NUM * MAX_READ_NUM * sizeof(int64_t));
+// TODO: This temporary function has been used for testing. Delete it once it is not useful anymore
+void send_dummy_region() {
+	reads_len_buffer[0] = 5;
+	char read[10] = "ACTGC";
+	char hapl[10] = "ACAGC";
+	memcpy(reads_array_buffer, read, 6);
+	haplotypes_len_buffer[0] = 5;
+	haplotypes_val_buffer[0] = 1;
+	memcpy(haplotypes_array_buffer, hapl, 6);
+	int index = queue_put(&dpu_regions_queue);
+	dpu_regions_buffer[index].dpu_inactive = false;
+	dpu_regions_buffer[index].first_region_index = 0;
+	dpu_regions_buffer[index].nr_regions = 1;
+	dpu_regions_buffer[index].nr_reads = 1;
+	dpu_regions_buffer[index].nr_haplotypes = 1;
+	dpu_regions_buffer[index].region_shapes[0].region_index = 0;
+	dpu_regions_buffer[index].region_shapes[0].nr_reads = 1;
+	dpu_regions_buffer[index].region_shapes[0].nr_haplotypes = 1;
+	dpu_regions_buffer[index].region_shapes[0].read_offset = 0;
+	dpu_regions_buffer[index].region_shapes[0].hapl_offset = 0;
+	dpu_regions_buffer[index].region_shapes[0].total_nr_subregions = 1;
+	dpu_regions_buffer[index].haplotype_region_starts[0] = 0;
+	dpu_regions_buffer[index].haplotype_region_starts[1] = 1;
+	dpu_regions_buffer[index].read_region_starts[0] = 0;
+	dpu_regions_buffer[index].read_region_starts[1] = 1;
+	dpu_regions_buffer[index].reads_len = reads_len_buffer;
+	dpu_regions_buffer[index].reads_array = reads_array_buffer;
+	dpu_regions_buffer[index].haplotypes_len = haplotypes_len_buffer;
+	dpu_regions_buffer[index].haplotypes_val = haplotypes_val_buffer;
+	dpu_regions_buffer[index].haplotypes_array = haplotypes_array_buffer;
+	dpu_regions_buffer[index].priors = priors;
+	dpu_regions_buffer[index].match_to_indel = match_to_indel_buffer;
+
+	queue_make_available(&dpu_regions_queue, index);
+	queue_close(&dpu_regions_queue, MAX_RANKS);
+}
+
+// TODO: This temporary function has been used for testing. Delete it once it is not useful anymore
+void print_all_dpu_results() {
+	while (true) {
+		int index = queue_take(&dpu_results_queue);
+		if (index < 0) {
+			LOG_INFO("results queue closed\n");
+			return;
+		}
+		LOG_INFO("got result from dpus: %d regions computed in %u cycles\n", dpu_results_buffer[index].nr_regions, dpu_results_buffer[index].nr_cycles);
+		queue_release(&dpu_results_queue, index);
 	}
 }
 
@@ -56,9 +99,14 @@ int main(int argc, char* argv[]) {
 		LOG_FATAL("Can't open result file");
 		return 0;
 	}
+	//Set up queues:
+	queue_init(&dpu_regions_queue, DPU_INPUT_BUFFER_SIZE);
+	queue_init(&dpu_results_queue, DPU_OUTPUT_BUFFER_SIZE);
 
 	// Start-up parser thread.
 	// TODO: implement this
+	LOG_INFO("Launching parser\n");
+	send_dummy_region();
 
 	// Start-up dpu threads.
 	LOG_INFO("Launching dpu dispatching\n");
@@ -68,8 +116,12 @@ int main(int argc, char* argv[]) {
 	// TODO: implement this 
 	//       if result processing is single-threaded, just call a function without creating a new thread.
 	//       So that we don't need to do a sync before returning from main.
+	LOG_INFO("Launching result printer\n");
+	print_all_dpu_results();
 
 	// TODO: Ensure all threads have returned or ensure the result queue is properly closed before this call.
 	free_dpus();
 	return 0;
 }
+
+

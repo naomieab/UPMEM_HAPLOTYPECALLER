@@ -38,7 +38,13 @@ struct dpu_results_t {
 	uint64_t nr_cycles;
 };
 
-struct region_shape_t regions_processing[MAX_RANKS][MAX_DPUS_PER_RANK][MAX_REGIONS_PER_DPU];
+struct dpu_work_t {
+	uint32_t first_region_index;
+	uint32_t nr_regions;
+	struct region_shape_t region_shapes[MAX_REGIONS_PER_DPU];
+};
+
+struct dpu_work_t regions_processing[MAX_RANKS][MAX_DPUS_PER_RANK];
 
 // No verification is done on the use of those buffers.
 // If TOTAL_READS and TOTAL_HAPS are too small, data may get corrupted without any warning.
