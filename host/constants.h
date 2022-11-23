@@ -21,29 +21,31 @@
 
 #define MAX_READ_LENGTH 80 //must be a multiple of 8 (because for the biggest read we bring READ_SIZE*sizeof(char))
 
-#define MAX_READ_NUM 240//1432 
+#define MAX_READ_NUM 300//1432 
 
 #define MAX_HAPLOTYPE_LENGTH 384//200 //MUST BE MULTIPLE OF 4
-#define MAX_HAPLOTYPE_NUM 50
-#define MAX_REGIONS_PER_DPU 29// Has to be an odd number
+#define MAX_HAPLOTYPE_NUM 80
+#define MAX_REGIONS_PER_DPU 35// Has to be an odd number
 
 #define NR_WRAM_HAPLOTYPES 16
 #if NR_WRAM_HAPLOTYPES*MAX_HAPLOTYPE_LENGTH*1 < LIMIT
 #error "DPU code has been written for a wram haplotype buffer with a size above LIMIT"
 #endif
 
-#define TARGET_COMPLEXITY  2500000
+#define TARGET_COMPLEXITY  3000000
 
 
 
 #define TOTAL_REGIONS 417119//Total number of regions in the run
 #define NR_REGIONS 24000 //Maximum number of regions which can be sent in a single round (we send by chunk to dpus)
 #define NUMBER_DPUS 2560 //Total number of dpus available (we send by chunk to dpus)
+#define MAX_RANKS         40
+#define MAX_DPUS_PER_RANK 64
 
 
 //sum of all the reads/haplotypes in chunks of 2546 regions ( + maximum number of reads/haplotypes per region)
 #define TOTAL_READS 1165000//44853 
-#define TOTAL_HAPS 62000//8000 
+#define TOTAL_HAPS 80000//8000 
 
 //dedicated to an array containing the offsets of the data
 #define OFFSET_SIZE 5
@@ -52,5 +54,9 @@
 #define READS_ARR 2
 #define HAPS_ARR 3
 #define PRIOR_ARR 4
+
+//Buffers:
+#define DPU_INPUT_BUFFER_SIZE  NUMBER_DPUS
+#define DPU_OUTPUT_BUFFER_SIZE NUMBER_DPUS
 
 //void createLut(int[] lut);

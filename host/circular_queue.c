@@ -22,6 +22,7 @@ void queue_init(struct queue_t* queue, int size) {
 	queue->next_to_make_available = 0;
 	queue->next_to_take = 0;
     queue->queue_closed = false;
+    queue->number_of_writers = 0;
 }
 
 void queue_close(struct queue_t* queue, int max_consumers) {
@@ -29,6 +30,20 @@ void queue_close(struct queue_t* queue, int max_consumers) {
     for (int i=0; i<max_consumers; i++) {
         sem_post(&queue->used_semaphore);
     }
+}
+
+void queue_open_writer(struct queue_t* queue) {
+    pthread_mutex_lock(&queue->mutex);
+    queue->number_of_writers++;
+    pthread_mutex_unlock(&queue->mutex);
+}
+
+void queue_close_writer(struct queue_t* queue, int max_consumers) {
+    pthread_mutex_lock(&queue->mutex);
+    if (--(queue->number_of_writers) <= 0) {
+        queue_close(queue, max_consumers);
+    }
+    pthread_mutex_unlock(&queue->mutex);
 }
 
 /*

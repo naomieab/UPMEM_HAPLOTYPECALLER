@@ -1,5 +1,6 @@
 #include "circular_queue.h"
 #include "constants.h"
+#include <stdint.h>
 
 struct region_shape_t {
 	// The index of this region (or the index of the region wich this subregion is from)
@@ -9,7 +10,7 @@ struct region_shape_t {
 	uint32_t read_offset;
 	uint32_t hapl_offset;
 	uint32_t total_nr_subregions;// The number of subregions from the same main region
-}
+};
 
 struct dpu_regions_t {
 	uint64_t  dpu_inactive;
@@ -27,15 +28,15 @@ struct dpu_regions_t {
 	char*     haplotypes_array;
 	uint32_t* priors;
 	int32_t*  match_to_indel;
-}
+};
 
 struct dpu_results_t {
 	uint32_t first_region_index;
 	uint32_t nr_regions;
-	struct   region_shape_t region_shapes[MAX_REGIONS_PER_DPU]
+	struct   region_shape_t region_shapes[MAX_REGIONS_PER_DPU];
 	int64_t  likelihoods[MAX_READ_NUM][MAX_HAPLOTYPE_NUM];
 	uint64_t nr_cycles;
-}
+};
 
 struct region_shape_t regions_processing[MAX_RANKS][MAX_DPUS_PER_RANK][MAX_REGIONS_PER_DPU];
 
