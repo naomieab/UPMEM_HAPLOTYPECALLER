@@ -10,6 +10,9 @@ struct region_shape_t {
 	uint32_t read_offset;
 	uint32_t hapl_offset;
 	uint32_t total_nr_subregions;// The number of subregions from the same main region
+	uint32_t total_reads_region;
+	uint32_t total_haps_region;
+	bool	 last_subregion;
 };
 
 struct dpu_regions_t {
