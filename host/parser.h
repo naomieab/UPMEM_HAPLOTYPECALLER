@@ -8,11 +8,5 @@
 
 #define BUFFER_SIZE 4098
 
+void read_data(FILE* file, int nr_dpus);
 
-void add_haplotype(FILE* file, int hap_idx, int index);
-
-void add_read(FILE* file, int read_idx, int index);
-
-FILE* read_data(FILE* file, int nr_dpus, int* processed_regions);
-
-void free_mem(FILE* file);
