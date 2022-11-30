@@ -1,5 +1,6 @@
 #include "buffers.h"
 #include "constants.h"
+#include <stdio.h>
 
 #define MAX_SUB_REGIONS 600
 /*
