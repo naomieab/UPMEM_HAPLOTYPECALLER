@@ -18,13 +18,13 @@ DPUF_TARGET := ${BUILDDIR}/haplotype_dpuFixedSize
 
 
 HOST_SOURCES := $(wildcard ${HOST_DIR}/*.h ${HOST_DIR}/*.c)
-DPU_SOURCES := $(wildcard ${DPU_DIR}/*.c)
-DPU_DEPENDENCIES := $(wildcard ${DPU_DIR}/*.h ${DPU_DIR}/*.c host/constants.h)
+DPU_SOURCES := $(wildcard ${DPU_DIR}/*.c ${DPU_DIR}/*.S)
+DPU_DEPENDENCIES := $(wildcard ${DPU_DIR}/*.h ${DPU_DIR}/*.c ${DPU_DIR}/*.S ${HOST_DIR}/constants.h)
 
 .PHONY: all clean test_c
 
 
-HOST_FLAGS := -std=c11 -O3 -lm `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS}
+HOST_FLAGS := -std=c11 -O3 -lpthread -lm `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS}
 DPU_FLAGS := -DNR_TASKLETS=${NR_TASKLETS}
 
 all: ${HOST_TARGET} ${DPU_TARGET}
