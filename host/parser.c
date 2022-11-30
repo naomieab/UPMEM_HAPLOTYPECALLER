@@ -4,6 +4,7 @@
 #include "buffers.h"
 
 #define HAPLOTYPE_STEP 3
+#define min(X,Y) (((X) < (Y)) ? (X) : (Y))
 
 //data of scanned region
 uint32_t nr_reads_region;
@@ -155,8 +156,9 @@ void read_data(FILE* file, int nr_dpus) {
 			//pour garder la meme function on fait dabord le passage ici pour decider cb de read et hap ( a checker niveau temps si cest trop faut l'inclure dans la fonction)
 			int current_sub_region = 0;
 			while (region_complexity > 0) {
+				int hap_to_add = min(nr_haplotypes_region - hap_offset, HAPLOTYPE_STEP); //first item is the number of remaining haps in region
 				printf("Enter splitting of region dpu_complexity %d and region complexity %d\n", current_dpu_left_complexity, region_complexity);
-				if (dpu_regions_buffer[current_dpu].nr_haplotypes + HAPLOTYPE_STEP > MAX_HAPLOTYPE_NUM ||
+				if (dpu_regions_buffer[current_dpu].nr_haplotypes + hap_to_add > MAX_HAPLOTYPE_NUM ||
 					dpu_regions_buffer[current_dpu].nr_reads >= MAX_READ_NUM ||
 					dpu_regions_buffer[current_dpu].nr_regions + 1 > MAX_REGIONS_PER_DPU ||
 					current_dpu_left_complexity < 0) {
@@ -183,16 +185,17 @@ void read_data(FILE* file, int nr_dpus) {
 				while (current_dpu_left_complexity > 0 &&
 					dpu_regions_buffer[current_dpu].nr_reads < MAX_READ_NUM &&
 					(hap_offset < nr_haplotypes_region || read_offset < nr_reads_region)) {
+					hap_to_add = min(nr_haplotypes_region - hap_offset, HAPLOTYPE_STEP);
 					partial_read_sum = 0;
-					dpu_regions_buffer[current_dpu].nr_haplotypes += 3;
+					dpu_regions_buffer[current_dpu].nr_haplotypes += hap_to_add;
 					int length_hap = 0;
-					for (int i = 0; i < HAPLOTYPE_STEP; i++) {
+					for (int i = 0; i < hap_to_add; i++) {
 						length_hap += strlen(strtok(haplotypes_lines[hap_offset + i], ","));
 					}
 					hap_cnt += HAPLOTYPE_STEP;
 					int reads_length_goal = current_dpu_left_complexity / length_hap;
 					
-					while (partial_read_sum < reads_length_goal && read_offset + read_cnt < nr_reads_region &&
+					while (partial_read_sum <= reads_length_goal && read_offset + read_cnt < nr_reads_region &&
 						dpu_regions_buffer[current_dpu].nr_reads + read_cnt < MAX_READ_NUM) { //add reads
 
 						partial_read_sum += strlen(strtok(reads_lines[2 * (read_offset + read_cnt)], ","));
