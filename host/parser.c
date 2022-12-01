@@ -192,7 +192,7 @@ void read_data(FILE* file, int nr_dpus) {
 					for (int i = 0; i < hap_to_add; i++) {
 						length_hap += strlen(strtok(haplotypes_lines[hap_offset + i], ","));
 					}
-					hap_cnt += HAPLOTYPE_STEP;
+					hap_cnt += hap_to_add;
 					int reads_length_goal = current_dpu_left_complexity / length_hap;
 					
 					while (partial_read_sum <= reads_length_goal && read_offset + read_cnt < nr_reads_region &&
