@@ -56,17 +56,16 @@ void send_region(int current_dpu, int read_idx, int hap_idx, int read_nb, int ha
 	printf("Send region with read_idx=%d, int hap_idx=%d, int read_nb=%d, int hap_nb=%d, int read_offset=%d, int hap_offset=%d, int region_idx=%d, int region_sub_idx=%d\n", read_idx,  hap_idx, read_nb, hap_nb, read_offset, hap_offset, region_idx, region_sub_idx);
 	if (last_subregion) { printf("LAST SUBREGION\n\n"); }
 	int dpu_region = dpu_regions_buffer[current_dpu].nr_regions;
-	struct region_shape_t region_shape = dpu_regions_buffer[current_dpu].region_shapes[dpu_region];
 
-	region_shape.region_index = region_idx;
-	region_shape.nr_reads = read_nb;
-	region_shape.nr_haplotypes = hap_nb;
-	region_shape.read_offset = read_offset;
-	region_shape.hapl_offset = hap_offset;
-	region_shape.total_nr_subregions = region_sub_idx; //the sub region index for current region
-	region_shape.last_subregion = last_subregion;
-	region_shape.total_reads_region = nr_reads_region;
-	region_shape.total_haps_region = nr_haplotypes_region;
+	dpu_regions_buffer[current_dpu].region_shapes[dpu_region].region_index = region_idx;
+	dpu_regions_buffer[current_dpu].region_shapes[dpu_region].nr_reads = read_nb;
+	dpu_regions_buffer[current_dpu].region_shapes[dpu_region].nr_haplotypes = hap_nb;
+	dpu_regions_buffer[current_dpu].region_shapes[dpu_region].read_offset = read_offset;
+	dpu_regions_buffer[current_dpu].region_shapes[dpu_region].hapl_offset = hap_offset;
+	dpu_regions_buffer[current_dpu].region_shapes[dpu_region].total_nr_subregions = region_sub_idx; //the sub region index for current region
+	dpu_regions_buffer[current_dpu].region_shapes[dpu_region].last_subregion = last_subregion;
+	dpu_regions_buffer[current_dpu].region_shapes[dpu_region].total_reads_region = nr_reads_region;
+	dpu_regions_buffer[current_dpu].region_shapes[dpu_region].total_haps_region = nr_haplotypes_region;
 
 	dpu_regions_buffer[current_dpu].haplotype_region_starts[dpu_region] = dpu_regions_buffer[current_dpu].nr_haplotypes - hap_nb; //substract because we have already updated the nb of hap in dpu
 	dpu_regions_buffer[current_dpu].read_region_starts[dpu_region] = dpu_regions_buffer[current_dpu].nr_reads - read_nb;
