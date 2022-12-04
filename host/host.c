@@ -11,7 +11,7 @@
 #include "constants.h"
 #include "log.h"
 #include "launch_dpus.h"
-
+#include "result_collector.h"
 
 
 
@@ -105,7 +105,9 @@ int main(int argc, char* argv[]) {
 	// Start-up parser thread.
 	// TODO: implement this
 	LOG_INFO("Launching parser\n");
-	send_dummy_region();
+	pthread_t parser_thread;
+	pthread_create(&parser_thread, NULL, read_data, (void*)data_file);
+	//send_dummy_region();
 
 	// Start-up dpu threads.
 	LOG_INFO("Launching dpu dispatching\n");
@@ -116,7 +118,8 @@ int main(int argc, char* argv[]) {
 	//       if result processing is single-threaded, just call a function without creating a new thread.
 	//       So that we don't need to do a sync before returning from main.
 	LOG_INFO("Launching result printer\n");
-	print_all_dpu_results();
+	//print_all_dpu_results();
+	collect_result(result_file);
 
 	// TODO: Ensure all threads have returned or ensure the result queue is properly closed before this call.
 	free_dpus();
