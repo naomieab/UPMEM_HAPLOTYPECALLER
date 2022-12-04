@@ -28,33 +28,34 @@ void collect_result(FILE* output_file) {
 	}
 	int current_result = queue_take(&dpu_results_queue);
 	while (current_result != -1) {
-		struct dpu_results_t dpu_results = dpu_results_buffer[current_result];
-		for (int i = 0; i < dpu_results.nr_regions; i++) {
-			struct region_shape_t region = dpu_results.region_shapes[i];
+		for (int i = 0; i < dpu_results_buffer[current_result].nr_regions; i++) {
+      
+			//struct region_shape_t region = dpu_results.region_shapes[i];
 			//allocate results for region if needed
-			if (!allocated_regions[region.region_index]) {
-				region_reads_nb[region.region_index] = region.total_reads_region;
-				region_haps_nb[region.region_index] = region.total_haps_region;
-				results[region.region_index] = malloc(region.total_reads_region * sizeof(int*));
-				if (!results[region.region_index]) { printf("Error allocating\n"); }
-				for (int j = 0; j < region.total_reads_region; j++) {
-					results[region.region_index][j] = malloc(region.total_haps_region * sizeof(int));
-					if (!results[region.region_index][j]) { printf("Error allocating\n"); }
+			printf("Results with %d reads and %d haps\n", dpu_results_buffer[current_result].region_shapes[i].total_reads_region, dpu_results_buffer[current_result].region_shapes[i].total_haps_region);
+      if (!allocated_regions[region.region_index]) {
+				region_reads_nb[dpu_results_buffer[current_result].region_shapes[i].region_index] = dpu_results_buffer[current_result].region_shapes[i].total_reads_region;
+				region_haps_nb[dpu_results_buffer[current_result].region_shapes[i].region_index] = dpu_results_buffer[current_result].region_shapes[i].total_haps_region;
+				results[dpu_results_buffer[current_result].region_shapes[i].region_index] = malloc(dpu_results_buffer[current_result].region_shapes[i].total_reads_region * sizeof(int*));
+				if (!results[dpu_results_buffer[current_result].region_shapes[i].region_index]) { printf("Error allocating\n"); }
+				for (int j = 0; j < dpu_results_buffer[current_result].region_shapes[i].total_reads_region; j++) {
+					results[dpu_results_buffer[current_result].region_shapes[i].region_index][j] = malloc(dpu_results_buffer[current_result].region_shapes[i].total_haps_region * sizeof(int));
+					if (!results[dpu_results_buffer[current_result].region_shapes[i].region_index][j]) { printf("Error allocating\n"); }
 				}
-				allocated_regions[region.region_index] = 1;
+				allocated_regions[dpu_results_buffer[current_result].region_shapes[i].region_index] = 1;
 			}
 
-			for (int n = 0; n < region.nr_reads; n++) {
-				for (int m = 0; m < region.nr_haplotypes; m++) {
-					results[region.region_index][n + region.read_offset][m + region.hapl_offset] = dpu_results.likelihoods[n][m];
+			for (int n = 0; n < dpu_results_buffer[current_result].region_shapes[i].nr_reads; n++) {
+				for (int m = 0; m < dpu_results_buffer[current_result].region_shapes[i].nr_haplotypes; m++) {
+					results[dpu_results_buffer[current_result].region_shapes[i].region_index][n + dpu_results_buffer[current_result].region_shapes[i].read_offset][m + dpu_results_buffer[current_result].region_shapes[i].hapl_offset] = dpu_results_buffer[current_result].likelihoods[n][m];
 				}
 			}
-			sub_region_count[region.region_index]--;
-			if (region.last_subregion) {
-				sub_region_count[region.region_index] += region.total_nr_subregions;
+			sub_region_count[dpu_results_buffer[current_result].region_shapes[i].region_index]--;
+			if (dpu_results_buffer[current_result].region_shapes[i].last_subregion) {
+				sub_region_count[dpu_results_buffer[current_result].region_shapes[i].region_index] += dpu_results_buffer[current_result].region_shapes[i].total_nr_subregions;
 			}
-			if (sub_region_count[region.region_index] == 0) {
-				received_regions[region.region_index] = 1;
+			if (sub_region_count[dpu_results_buffer[current_result].region_shapes[i].region_index] == 0) {
+				received_regions[dpu_results_buffer[current_result].region_shapes[i].region_index] = 1;
 			}
 		}
 		queue_release(&dpu_results_queue, current_result);
@@ -66,6 +67,7 @@ void collect_result(FILE* output_file) {
 					fprintf(output_file, "%f,", (double)results[next_to_write][i][j] / (double)ONE);
 				}
 				fprintf(output_file, "\n");
+				printf("Free something\n");
 				free(results[next_to_write][i]);
 			}
 			fprintf(output_file, "\n\n\n");
