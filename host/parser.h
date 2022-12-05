@@ -8,5 +8,5 @@
 
 #define BUFFER_SIZE 4098
 
-void read_data(FILE* file, int nr_dpus);
+void* read_data(void* input_file);
 

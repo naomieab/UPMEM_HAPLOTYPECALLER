@@ -111,7 +111,8 @@ void send_region(int current_dpu, int read_idx, int hap_idx, int read_nb, int ha
 	return;
 }
 
-void read_data(FILE* file, int nr_dpus) {
+void* read_data(void* input_file) {
+	FILE* file = (FILE*)input_file;
 	int current_region = -1;
 	int region_complexity, current_dpu_left_complexity = TARGET_COMPLEXITY;
 	int read_idx = 0, hap_idx = 0;
@@ -248,4 +249,5 @@ void read_data(FILE* file, int nr_dpus) {
 			}
 		}
 	}
+	return NULL;
 }
