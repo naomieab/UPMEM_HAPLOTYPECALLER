@@ -27,7 +27,7 @@ dpu_error_t run_rank(struct dpu_set_t set, uint32_t rank_id, void* arg) {
 		if (queue_closed) {
 			region_id = -1;
 		} else {
-			LOG_DEBUG("taking from queue\n");
+			//LOG_DEBUG("taking from queue\n");
 			region_id = queue_take(&dpu_regions_queue);
 		}
 		dpu_buffer_indices[each_dpu] = region_id;
@@ -163,6 +163,7 @@ dpu_error_t run_rank(struct dpu_set_t set, uint32_t rank_id, void* arg) {
 	DPU_FOREACH(set, dpu, each_dpu) {
 		if (dpu_buffer_indices[each_dpu] >= 0) {
 			int result_id = queue_put(&dpu_results_queue);
+      LOG_INFO("Queue put result %d\n", result_id);
 			dpu_buffer_indices[each_dpu] = result_id;
 			DPU_ASSERT(dpu_prepare_xfer(dpu, dpu_results_buffer[dpu_buffer_indices[each_dpu]].likelihoods));
 		} else {
@@ -189,9 +190,10 @@ dpu_error_t run_rank(struct dpu_set_t set, uint32_t rank_id, void* arg) {
 		}
 	}
 
-	DPU_ASSERT(dpu_sync(set));
+	//DPU_ASSERT(dpu_sync(set));
 	DPU_FOREACH(set, dpu, each_dpu) {
 		if (dpu_buffer_indices[each_dpu] >= 0) {
+      LOG_INFO("Queue make available result %d\n", dpu_buffer_indices[each_dpu]);
 			queue_make_available(&dpu_results_queue, dpu_buffer_indices[each_dpu]);
 		}
 	}

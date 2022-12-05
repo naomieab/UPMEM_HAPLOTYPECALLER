@@ -10,6 +10,7 @@
 uint32_t nr_reads_region;
 uint32_t nr_haplotypes_region;
 char reads_lines[2 * MAX_READS_REGION][BUFFER_SIZE];
+uint32_t reads_len[MAX_READS_REGION];
 char haplotypes_lines[MAX_HAPLOTYPE_REGION][BUFFER_SIZE];
 
 /*
@@ -37,7 +38,8 @@ FILE* scan_region(FILE* file, int* region_complexity){
 	for (int j = 0; j < nr_reads_region; j++) { //scan reads
 		fgets(buffer, BUFFER_SIZE, file);
 		strcpy(reads_lines[2 * j], buffer);
-		total_read_lengths += strlen(strtok(buffer, ","));
+		reads_len[j] = strlen(strtok(buffer, ","));
+		total_read_lengths += reads_len[j];
 		fgets(buffer, BUFFER_SIZE, file);
 		strcpy(reads_lines[2 * j + 1], buffer);
 	}
@@ -69,11 +71,15 @@ void send_region(int current_dpu, int read_idx, int hap_idx, int read_nb, int ha
 
 	dpu_regions_buffer[current_dpu].haplotype_region_starts[dpu_region] = dpu_regions_buffer[current_dpu].nr_haplotypes - hap_nb; //substract because we have already updated the nb of hap in dpu
 	dpu_regions_buffer[current_dpu].read_region_starts[dpu_region] = dpu_regions_buffer[current_dpu].nr_reads - read_nb;
+	if (dpu_region < MAX_REGIONS_PER_DPU) {//TODO:the condition can be removed
+		dpu_regions_buffer[current_dpu].haplotype_region_starts[dpu_region + 1] = dpu_regions_buffer[current_dpu].nr_haplotypes;
+		dpu_regions_buffer[current_dpu].read_region_starts[dpu_region + 1] = dpu_regions_buffer[current_dpu].nr_reads;
 
+	}
 	//fill haplotypes buffers
 	for (int i = 0; i < hap_nb; i++) {
 		int hap_length = strlen(strtok(haplotypes_lines[hap_offset + i], ","));
-		haplotypes_len_buffer[hap_idx + i] = hap_length;
+		haplotypes_len_buffer[hap_idx + i] = hap_length-1;//-1 because of the \n
 		haplotypes_val_buffer[hap_idx + i] = (int)(log10(1.0 / (hap_length - 1)) * ONE);
 		strncpy(&haplotypes_array_buffer[(hap_idx + i) * MAX_HAPLOTYPE_LENGTH], haplotypes_lines[hap_offset + i], MAX_HAPLOTYPE_LENGTH);
 	}
@@ -85,19 +91,21 @@ void send_region(int current_dpu, int read_idx, int hap_idx, int read_nb, int ha
 
 	//fill reads buffers
 	for (int i = 0; i < read_nb; i++) {
-		int read_length = strlen(strtok(reads_lines[2 * (read_offset + i)], ","));
+		int read_length = reads_len[read_offset + i];//strlen(strtok(reads_lines[2 * (read_offset + i)], ","));
 		reads_len_buffer[read_idx + i] = read_length;
-		strcpy(&reads_array_buffer[(read_idx + i) * MAX_READ_LENGTH], strtok(reads_lines[2*(read_offset + i)], ","));
-		char* prior;
-		char* indel;
-		int j;
-		for (j = 0, prior = strtok(NULL, ","), indel = strtok(reads_lines[2 * (read_offset + i) + 1], ","); prior != NULL && j < read_length; prior = strtok(NULL, ","), indel = strtok(NULL, ","), j++) {
+		char* prior = strtok(reads_lines[2 * (read_offset + i)], ",");
+		strcpy(&reads_array_buffer[(read_idx + i) * MAX_READ_LENGTH], prior);
+		int j;   
+		for (j = 0, prior = strtok(NULL, ","); prior != NULL && j < read_length; prior = strtok(NULL, ","), j++) {
 			int quality = atoi(prior);
-			int transition = atoi(indel);
 			double probLog10 = log10(1 - pow((double)10, -(double)quality / 10.0));
 			double errorProbLog10 = log10(pow((double)10, -(double)quality / 10.0)) - log10(3);
 			priors[(read_idx + i) * 2 * MAX_READ_LENGTH + 2 * j] = (int)(probLog10 * ONE);
 			priors[(read_idx + i) * 2 * MAX_READ_LENGTH + 2 * j + 1] = (int)(errorProbLog10 * ONE);
+		}
+		char* indel = strtok(reads_lines[2 * (read_offset + i)+1], ",");
+		for (j = 0; indel != NULL && j < read_length; indel = strtok(NULL, ","), j++) {
+			int transition = atoi(indel);
 			match_to_indel_buffer[(read_idx + i) * MAX_READ_LENGTH + j] = (int)(log10(pow((double)10, -(double)transition / 10.0)) * ONE);
 		}
 
@@ -162,8 +170,19 @@ void* read_data(void* input_file) {
 					dpu_regions_buffer[current_dpu].nr_reads >= MAX_READ_NUM ||
 					dpu_regions_buffer[current_dpu].nr_regions + 1 > MAX_REGIONS_PER_DPU ||
 					current_dpu_left_complexity < 0) {
+					/*printf("Haplotype_start: ");
+					for (int k = 0; k < dpu_regions_buffer[current_dpu].nr_regions+1; k++) {
+						printf("%d | ", dpu_regions_buffer[current_dpu].haplotype_region_starts[k]);
+					}
+					printf("\n");
+					printf("Read_start: ");
+					for (int k = 0; k < dpu_regions_buffer[current_dpu].nr_regions+1; k++) {
+							printf("%d | ", dpu_regions_buffer[current_dpu].read_region_starts[k]);
+					}
+					printf("\n");*/
 					queue_make_available(&dpu_regions_queue, current_dpu);
-					fprintf(stderr, "Allocate a NEW DPU dpu left complexity %d\n", current_dpu_left_complexity);
+					//fprintf(stderr, "Allocate a NEW DPU dpu left complexity %d\n", current_dpu_left_complexity);
+					printf("Allocate a NEW DPU dpu left complexity %d\n", current_dpu_left_complexity);
 					current_dpu = queue_put(&dpu_regions_queue);
 					//if (current_sub_region != 0) { current_sub_region++; }
 					//if (current_dpu == nr_dpus) { current_dpu = 0; } //TODO: must wait for queue to free something?
@@ -178,7 +197,6 @@ void* read_data(void* input_file) {
 						hap_idx = 0;
 					}
 				}
-				
 				int partial_read_sum = 0;
 				int read_cnt = 0, hap_cnt = 0;
 				printf("Hap idx %d read idx %d dpu nr reads %d", hap_idx, read_idx, dpu_regions_buffer[current_dpu].nr_reads);
@@ -198,8 +216,9 @@ void* read_data(void* input_file) {
 					while (partial_read_sum <= reads_length_goal && read_offset + read_cnt < nr_reads_region &&
 						dpu_regions_buffer[current_dpu].nr_reads + read_cnt < MAX_READ_NUM) { //add reads
 
-						partial_read_sum += strlen(strtok(reads_lines[2 * (read_offset + read_cnt)], ","));
+						partial_read_sum += reads_len[read_offset + read_cnt];//strlen(strtok(reads_lines[2 * (read_offset + read_cnt)], ","));
 						read_cnt++;
+						dpu_regions_buffer[current_dpu].nr_reads++;
 					}
 				
 					while (length_hap * partial_read_sum < current_dpu_left_complexity &&
@@ -209,6 +228,7 @@ void* read_data(void* input_file) {
 
 						length_hap += strlen(strtok(haplotypes_lines[hap_offset + hap_cnt], ","));
 						hap_cnt++;
+						dpu_regions_buffer[current_dpu].nr_haplotypes++;
 					}
 					current_dpu_left_complexity -= (length_hap * partial_read_sum);
 					region_complexity -= (length_hap * partial_read_sum);
