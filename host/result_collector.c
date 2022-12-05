@@ -33,7 +33,7 @@ void collect_result(FILE* output_file) {
 			//struct region_shape_t region = dpu_results.region_shapes[i];
 			//allocate results for region if needed
 			printf("Results with %d reads and %d haps\n", dpu_results_buffer[current_result].region_shapes[i].total_reads_region, dpu_results_buffer[current_result].region_shapes[i].total_haps_region);
-      if (!allocated_regions[region.region_index]) {
+      if (!allocated_regions[dpu_results_buffer[current_result].region_shapes[i].region_index]) {
 				region_reads_nb[dpu_results_buffer[current_result].region_shapes[i].region_index] = dpu_results_buffer[current_result].region_shapes[i].total_reads_region;
 				region_haps_nb[dpu_results_buffer[current_result].region_shapes[i].region_index] = dpu_results_buffer[current_result].region_shapes[i].total_haps_region;
 				results[dpu_results_buffer[current_result].region_shapes[i].region_index] = malloc(dpu_results_buffer[current_result].region_shapes[i].total_reads_region * sizeof(int*));
