@@ -36,7 +36,7 @@
 
 
 
-#define TOTAL_REGIONS 417119//Total number of regions in the run
+#define TOTAL_REGIONS 132108//Total number of regions in the run
 #define NR_REGIONS 24000 //Maximum number of regions which can be sent in a single round (we send by chunk to dpus)
 #define NUMBER_DPUS 2560 //Total number of dpus available (we send by chunk to dpus)
 #define MAX_RANKS         40

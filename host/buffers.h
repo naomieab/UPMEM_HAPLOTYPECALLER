@@ -27,9 +27,9 @@ struct dpu_regions_t {
 	uint64_t* reads_len;
 	char*     reads_array;
 	uint64_t* haplotypes_len;
-	uint64_t* haplotypes_val;
+	int64_t*  haplotypes_val;
 	char*     haplotypes_array;
-	uint32_t* priors;
+	int32_t*  priors;
 	int32_t*  match_to_indel;
 };
 
@@ -37,7 +37,7 @@ struct dpu_results_t {
 	uint32_t first_region_index;
 	uint32_t nr_regions;
 	struct   region_shape_t region_shapes[MAX_REGIONS_PER_DPU];
-	int64_t  likelihoods[MAX_READ_NUM][MAX_HAPLOTYPE_NUM];
+	int64_t  likelihoods[MAX_READ_NUM*MAX_HAPLOTYPE_NUM];
 	uint64_t nr_cycles;
 };
 
@@ -53,10 +53,10 @@ struct dpu_work_t regions_processing[MAX_RANKS][MAX_DPUS_PER_RANK];
 // If TOTAL_READS and TOTAL_HAPS are too small, data may get corrupted without any warning.
 uint64_t reads_len_buffer       [TOTAL_READS];
 char     reads_array_buffer     [TOTAL_READS * MAX_READ_LENGTH];
-uint32_t priors                 [TOTAL_READS * MAX_READ_LENGTH];
+int32_t  priors                 [TOTAL_READS * 2 * MAX_READ_LENGTH];
 int32_t  match_to_indel_buffer  [TOTAL_READS * MAX_READ_LENGTH];
 uint64_t haplotypes_len_buffer  [TOTAL_HAPS];
-uint64_t haplotypes_val_buffer  [TOTAL_HAPS];
+int64_t  haplotypes_val_buffer  [TOTAL_HAPS];
 char     haplotypes_array_buffer[TOTAL_HAPS * MAX_HAPLOTYPE_LENGTH];
 
 struct dpu_regions_t dpu_regions_buffer[DPU_INPUT_BUFFER_SIZE];

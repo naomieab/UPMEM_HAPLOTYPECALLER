@@ -29,7 +29,7 @@ extern uint32_t haplotype_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU + 1];
 extern uint32_t read_region_starts[NUMBER_DPUS][MAX_REGIONS_PER_DPU + 1];
 
 // TODO: This temporary function has been used for testing. Delete it once it is not useful anymore
-void send_dummy_region() {
+void* send_dummy_region() {
 	reads_len_buffer[0] = 5;
 	char read[10] = "ACTGC";
 	char hapl[10] = "ACAGC";
@@ -63,6 +63,7 @@ void send_dummy_region() {
 
 	queue_make_available(&dpu_regions_queue, index);
 	queue_close(&dpu_regions_queue, MAX_RANKS);
+ return NULL;
 }
 
 // TODO: This temporary function has been used for testing. Delete it once it is not useful anymore
@@ -73,7 +74,7 @@ void print_all_dpu_results() {
 			LOG_INFO("results queue closed\n");
 			return;
 		}
-		LOG_INFO("got result from dpus: %d regions computed in %u cycles\n", dpu_results_buffer[index].nr_regions, dpu_results_buffer[index].nr_cycles);
+		printf("got result from dpus: %d regions computed in %u cycles\n", dpu_results_buffer[index].nr_regions, dpu_results_buffer[index].nr_cycles);
 		queue_release(&dpu_results_queue, index);
 	}
 }
@@ -108,6 +109,7 @@ int main(int argc, char* argv[]) {
 	pthread_t parser_thread;
 	pthread_create(&parser_thread, NULL, read_data, (void*)data_file);
 	//send_dummy_region();
+ //pthread_create(&parser_thread, NULL, send_dummy_region, NULL);
 
 	// Start-up dpu threads.
 	LOG_INFO("Launching dpu dispatching\n");
