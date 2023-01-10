@@ -51,12 +51,12 @@ FILE* scan_region(FILE* file, long long int* region_complexity, int current_regi
 		char* previous = tmp + 1;
 		int index_in_str = comma - buffer + 2;
 		int length_of_substring = comma - previous;
-		if (length_of_substring >= 3) {
-			LOG_INFO(">3: region %d\n", current_region);
+		if (length_of_substring >= 4) {
+			LOG_INFO(">4: region %d\n", current_region);
 		}
-		char str_val[3];
+		char str_val[4];
 		int k = 0, quality;
-		assert(length_of_substring < 3);
+		assert(length_of_substring < 4);
 		while (comma != NULL) {
 			strncpy(str_val, previous, length_of_substring);
 			str_val[length_of_substring] = '\0';
@@ -134,7 +134,7 @@ void send_region(int current_dpu, int read_idx, int hap_idx, int read_nb, int ha
 		int hap_length = strlen(haplotypes_lines[hap_offset + i]);//strlen(strtok(haplotypes_lines[hap_offset + i], ","));
 		haplotypes_len_buffer[hap_idx + i] = hap_length;
 		assert(hap_length <= MAX_HAPLOTYPE_LENGTH);
-		printf("len:%d %s\n", hap_length, haplotypes_lines[hap_offset + i]);
+		// LOG_DEBUG("len:%d %s\n", hap_length, haplotypes_lines[hap_offset + i]);
 		haplotypes_val_buffer[hap_idx + i] = (int64_t)(log10(1.0 / (hap_length - 1)) * ONE);
 		strncpy(&haplotypes_array_buffer[(hap_idx + i) * MAX_HAPLOTYPE_LENGTH], haplotypes_lines[hap_offset + i], MAX_HAPLOTYPE_LENGTH);
 	}
@@ -154,7 +154,7 @@ void send_region(int current_dpu, int read_idx, int hap_idx, int read_nb, int ha
 		strncpy(&reads_array_buffer[(read_idx + i) * MAX_READ_LENGTH], reads_lines[2 * (read_offset + i)], read_length);
 		reads_array_buffer[(read_idx + i) * MAX_READ_LENGTH + read_length] = '\0';
 
-		printf("Read %d:%s", i, reads_lines[2 * (read_offset + i)]);
+		// LOG_DEBUG("Read %d:%s", i, reads_lines[2 * (read_offset + i)]);
 
 		double probLog10, errorProbLog10;
 		int quality;
@@ -241,7 +241,7 @@ void* read_data(void* input_file) {
 						pnt += 1;
 					}
 					queue_make_available(&dpu_regions_queue, current_dpu);
-					printf("NewDPU\n");
+					LOG_DEBUG("NewDPU\n");
 					current_dpu = queue_put(&dpu_regions_queue);
 					current_dpu_left_complexity = TARGET_COMPLEXITY;
 					dpu_regions_buffer[current_dpu].nr_reads = 0;
@@ -339,6 +339,7 @@ void* read_data(void* input_file) {
 		}
 
 	}
-	LOG_INFO("Finished regions scan\n");
+	LOG_INFO("\033[42mFinished regions scan\033[0m\n");
+    queue_close(&dpu_regions_queue, MAX_RANKS+1);
 	return NULL;
 }

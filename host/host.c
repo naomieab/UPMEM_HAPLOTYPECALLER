@@ -69,6 +69,7 @@ void* send_dummy_region() {
 // TODO: This temporary function has been used for testing. Delete it once it is not useful anymore
 void print_all_dpu_results() {
 	while (true) {
+        printf("queue take results for debugging\n");
 		int index = queue_take(&dpu_results_queue);
 		if (index < 0) {
 			LOG_INFO("results queue closed\n");

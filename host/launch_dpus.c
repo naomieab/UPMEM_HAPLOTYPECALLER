@@ -21,6 +21,7 @@ dpu_error_t run_rank(struct dpu_set_t set, uint32_t rank_id, void* arg) {
 	uint32_t each_dpu;
 	struct dpu_set_t dpu;
 	int dpu_buffer_indices[MAX_DPUS_PER_RANK];
+    uint64_t dpu_inactive[MAX_DPUS_PER_RANK];
 	// Reserve all needed regions for this rank.
 	bool all_dpus_inactive = true;
 	bool queue_closed = false;
@@ -29,25 +30,35 @@ dpu_error_t run_rank(struct dpu_set_t set, uint32_t rank_id, void* arg) {
 		int region_id;
 		if (queue_closed) {
 			region_id = -1;
-		}
-		else {
+		} else {
+            LOG_DEBUG("\033[33mqueue take regions queue for %d\033[0m\n", actual_rank);
 			region_id = queue_take(&dpu_regions_queue);
+            LOG_DEBUG("\033[34mqueue took regions queue for %d\033[0m\n", actual_rank);
 		}
 		dpu_buffer_indices[each_dpu] = region_id;
 		if (region_id < 0) {
 			queue_closed = true;
+            dpu_inactive[each_dpu] = 1;
 		}
 		else {
 			regions_processing[actual_rank][each_dpu].first_region_index = dpu_regions_buffer[region_id].first_region_index;
 			regions_processing[actual_rank][each_dpu].nr_regions = dpu_regions_buffer[region_id].nr_regions;
 			memcpy(regions_processing[actual_rank][each_dpu].region_shapes, dpu_regions_buffer[region_id].region_shapes, sizeof(struct region_shape_t) * MAX_REGIONS_PER_DPU);
 			all_dpus_inactive = false;
+            dpu_inactive[each_dpu] = 0;
 		}
 	}
 	if (all_dpus_inactive) {
 		queue_close_writer(&dpu_results_queue, 100);// FIXME: get actual max number of readers for that queue.
+        pthread_mutex_unlock(&populating_mutex);
+        LOG_DEBUG("\033[32mclosed one writer; %d left\033[0m\n", dpu_results_queue.number_of_writers);
 		return DPU_OK;
 	}
+
+    DPU_FOREACH(set, dpu, each_dpu) {
+        DPU_ASSERT(dpu_prepare_xfer(dpu, &dpu_inactive[each_dpu]));
+    }
+    DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "dpu_inactive", 0, sizeof(uint64_t), DPU_XFER_DEFAULT));
 
 	DPU_FOREACH(set, dpu, each_dpu) {
 		if (dpu_buffer_indices[each_dpu] < 0) {
@@ -213,15 +224,17 @@ dpu_error_t run_rank(struct dpu_set_t set, uint32_t rank_id, void* arg) {
 
 	clock_t start, end;
 	start = clock();
-	LOG_INFO("launching rank %d\n", actual_rank);
+	LOG_INFO("\033[33mlaunching rank   %d\033[0m\n", actual_rank);
 	DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+    LOG_INFO("\033[32mgot rank results %d\033[0m\n", actual_rank);
 
 	//Get results back
 	end = clock();
-	printf("fetching results for rank %d in %f seconds \n", actual_rank, (double)(end - start) / CLOCKS_PER_SEC);
+	LOG_INFO("fetching results for rank %d in %f seconds \n", actual_rank, (double)(end - start) / CLOCKS_PER_SEC);
 
 	DPU_FOREACH(set, dpu, each_dpu) {
 		if (dpu_buffer_indices[each_dpu] >= 0) {
+            LOG_DEBUG("putting in results queue\n");
 			int result_id = queue_put(&dpu_results_queue);
 			dpu_buffer_indices[each_dpu] = result_id;
 			DPU_ASSERT(dpu_prepare_xfer(dpu, dpu_results_buffer[dpu_buffer_indices[each_dpu]].likelihoods));
@@ -258,11 +271,12 @@ dpu_error_t run_rank(struct dpu_set_t set, uint32_t rank_id, void* arg) {
 			queue_make_available(&dpu_results_queue, dpu_buffer_indices[each_dpu]);
 		}
 	}
-	printf("Make available results of rank %d\n", actual_rank);
+	LOG_DEBUG("Make available results of rank %d\n", actual_rank);
 
 
 	if (queue_closed) {
 		queue_close_writer(&dpu_results_queue, 100);// FIXME: get actual max number of readers for that queue.
+        LOG_DEBUG("\033[32mclosed one writer; %d left\033[0m\n", dpu_results_queue.number_of_writers);
 		return DPU_OK;
 	}
 	// Callback itself
