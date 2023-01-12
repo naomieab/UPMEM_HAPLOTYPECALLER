@@ -339,6 +339,7 @@ void* read_data(void* input_file) {
 		}
 
 	}
+	queue_make_available(&dpu_regions_queue, current_dpu);
 	LOG_INFO("\033[42mFinished regions scan\033[0m\n");
     queue_close(&dpu_regions_queue, MAX_RANKS+1);
 	return NULL;
