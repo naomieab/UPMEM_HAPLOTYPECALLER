@@ -47,13 +47,28 @@ int log_sum_lut[LUT_SIZE] = { 154, 153, 153, 152, 152, 151, 151, 150, 150, 149, 
 
 
 
-
-
-int log10SumLog10(int a, int b) {
-	if (a == INT_MIN && b == INT_MIN) {
+/*
+int fixedAdd(int a, int b) {
+	if (a == INT_MIN || b == INT_MIN) {
 		return INT_MIN;
 	}
-	//if one of the two is INT_MIN return MAX
+
+	if ((~(a ^ b) & (a ^ (a+b))) < 0) {
+		return (a > 0 ? INT_MAX : INT_MIN);
+	}
+	return a+b;
+}
+
+int fixedAddNoINTMIN(int a, int b) {
+	if ((~(a ^ b) & (a ^ (a+b))) < 0) {
+		return (a > 0 ? INT_MAX : INT_MIN);
+	}
+	return a+b;
+}
+*/
+
+int log10SumLog10(int a, int b) {
+	//if one of the two is INT_MIN return MAX of the two
 	if (a == INT_MIN) {
 		return b;
 	}
@@ -62,10 +77,10 @@ int log10SumLog10(int a, int b) {
 	}
 	
 	if (a > b) {
-		return (a - b) >= LUT_SIZE ? a : fixedAdd(a, log_sum_lut[a - b]);
+		return (a - b) >= LUT_SIZE ? a : fixedAddNoINTMIN(a, log_sum_lut[a - b]);
 	}
 	else {
-		return (b - a) >= LUT_SIZE ? b : fixedAdd(b, log_sum_lut[b - a]);
+		return (b - a) >= LUT_SIZE ? b : fixedAddNoINTMIN(b, log_sum_lut[b - a]);
 	}
 }
 //return a > b ? a + Math.log10(1 + Math.pow(10.0, b - a)) : b + Math.log10(1 + Math.pow(10.0, a - b));

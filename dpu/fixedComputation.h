@@ -2,5 +2,6 @@
 
 
 int fixedAdd(int a, int b);
+int fixedAddNoINTMIN(int a, int b);
 int log10SumLog10(int a, int b);
 
